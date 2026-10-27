@@ -15,7 +15,9 @@ export type Db = PgliteDatabase<typeof schema>;
 
 const g = globalThis as unknown as { __db?: Db; __pglite?: PGlite; __dbReady?: Promise<void>; __closeHooked?: boolean };
 const migrationsFolder = path.join(process.cwd(), "drizzle");
-const dataDir = path.join(process.cwd(), ".data", "pglite");
+// On Vercel without Neon the only writable place is /tmp: each server instance gets its own
+// short-lived copy. Fine for a quick look; connect Neon so phone, tablet and laptop share data.
+const dataDir = process.env.VERCEL ? "/tmp/pglite" : path.join(process.cwd(), ".data", "pglite");
 
 function create(): Db {
   const url = process.env.DATABASE_URL;
@@ -32,12 +34,12 @@ function create(): Db {
   return drizzlePglite(g.__pglite, { schema });
 }
 
-g.__db ??= create();
-
 /** Always points at the current connection (it is replaced if the local demo DB has to be rebuilt). */
-export const db: Db = new Proxy({} as Db, { get: (_, key) => Reflect.get(g.__db!, key) });
+// Opened lazily: importing this module (e.g. during `next build`) never touches the database.
+export const db: Db = new Proxy({} as Db, { get: (_, key) => Reflect.get((g.__db ??= create()), key) });
 
 async function migrateAndSeed() {
+  g.__db ??= create();
   if (process.env.DATABASE_URL) await migrateNeon(g.__db as never, { migrationsFolder });
   else await migratePglite(g.__db!, { migrationsFolder });
   await seedIfEmpty(g.__db!);
