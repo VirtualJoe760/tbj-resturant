@@ -1,0 +1,71 @@
+import Link from "next/link";
+import { restaurant } from "@/config/restaurant";
+import { dayLabel, repeatLabel } from "@/domain/events";
+import { formatTime } from "@/domain/hours";
+import { money } from "@/domain/pricing";
+import { getHomeData } from "@/server/queries";
+import { NewsletterSignup } from "./NewsletterSignup";
+
+export default async function Home() {
+  const { featured, upcoming, location } = await getHomeData();
+  return (
+    <>
+      <section className="hero">
+        <div className={`status ${location.open ? "open" : "closed"}`}>
+          {location.open ? "● Open now" : "● Closed now"} · {location.hoursSummary[0]}
+        </div>
+        <h1>{restaurant.name}</h1>
+        <p>{restaurant.tagline}</p>
+        <Link className="btn" href="/menu">
+          <span>{location.open ? "Order now" : "Order ahead"}</span>
+          <span>Pickup ~{location.pickupLeadMinutes + (location.busy ? 15 : 0)} min →</span>
+        </Link>
+      </section>
+
+      <div className="sec">Specials &amp; new <Link href="/menu">Full menu →</Link></div>
+      <div className="scroller">
+        {featured.map((f) => (
+          <Link key={f.id} className="special" href={`/menu?item=${f.id}`}>
+            <div className="em">{f.emoji}</div>
+            <span className="badge">{f.badge}</span>
+            <div style={{ fontWeight: 700, marginTop: 6 }}>{f.name}</div>
+            <div className="mods">{f.blurb}</div>
+            <div style={{ fontWeight: 700, marginTop: 6 }}>from {money(f.price)}</div>
+          </Link>
+        ))}
+      </div>
+
+      {restaurant.features.events && (
+        <>
+          <div className="sec">Coming up <Link href="/events">All events →</Link></div>
+          {upcoming.map((e) => {
+            const d = dayLabel(e.on);
+            return (
+              <div className="ev" key={e.id + e.on}>
+                <div className="date"><small>{d.dow}</small><b>{d.day}</b></div>
+                <div className="grow">
+                  <b>{e.title}</b>
+                  <div className="mods">{formatTime(e.startTime ?? "20:00")} · {e.description}{repeatLabel(e) ? ` · ${repeatLabel(e)}` : ""}</div>
+                </div>
+                {e.linkPageSlug && <Link className="ibtn" href={`/p/${e.linkPageSlug}`}>Sign up</Link>}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      <div className="sec">Visit us</div>
+      <div className="card">
+        <b>{location.address}</b>
+        <div className="mods">{location.hoursSummary.join(" · ")} · {location.phone}</div>
+        <div className="chips" style={{ margin: "10px 0 0" }}>
+          <a href={`https://maps.google.com/?q=${encodeURIComponent(location.address)}`} target="_blank" rel="noreferrer">Directions</a>
+          <a href={`tel:${location.phone}`}>Call</a>
+          <Link href="/p/private-events">Book a party</Link>
+        </div>
+      </div>
+
+      {restaurant.features.newsletter && <NewsletterSignup />}
+    </>
+  );
+}

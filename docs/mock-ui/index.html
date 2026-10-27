@@ -1,0 +1,1533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant Mock UI</title>
+<style>
+  :root {
+    /* placeholder brand for The Hood until we get their logo/colors */
+    --primary: #F5A524; --primary-ink: #1c1917; --header: #18181b;
+    --bg: #f4f1ec; --card: #fff; --ink: #1c1917; --muted: #78716c; --line: #e7e5e4;
+    --ok: #15803d; --warn: #b45309; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: #d6d3d1; color: var(--ink); }
+  .wrap { display: flex; gap: 24px; justify-content: center; padding: 16px; flex-wrap: wrap; }
+  .nav { width: 100%; max-width: 860px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .nav button { border: 1px solid #a8a29e; background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .nav button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .nav .sep { width: 1px; background: #a8a29e; margin: 0 6px; }
+  .phone { width: 375px; max-width: 100%; height: 760px; background: var(--bg); border-radius: 36px; border: 10px solid #1c1917; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .phone.tablet { width: 820px; height: 600px; border-radius: 24px; }
+  .screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .screen.on { display: flex; }
+  .scroll { flex: 1; overflow-y: auto; }
+  header.top { background: var(--header); color: #fff; padding: 18px 16px 12px; border-bottom: 4px solid var(--primary); }
+  header.top h1 { margin: 0; font-size: 20px; }
+  header.top p { margin: 4px 0 0; font-size: 13px; opacity: .9; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: rgba(255,255,255,.2); }
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; }
+  .tabs span { white-space: nowrap; font-size: 14px; padding: 6px 12px; border-radius: 999px; background: var(--bg); }
+  .tabs span.on { background: var(--ink); color: #fff; }
+  .sec { padding: 12px 16px 4px; font-weight: 700; font-size: 15px; }
+  .item { display: flex; gap: 12px; background: var(--card); margin: 8px 16px; padding: 12px; border-radius: var(--radius); cursor: pointer; }
+  .item .img { width: 76px; height: 76px; border-radius: 10px; flex: none; display: grid; place-items: center; font-size: 34px; background: #fde68a; }
+  .item h3 { margin: 0; font-size: 15px; }
+  .item p { margin: 4px 0; font-size: 13px; color: var(--muted); }
+  .item .price { font-weight: 600; font-size: 14px; }
+  .item.sold { opacity: .5; cursor: default; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-left: 4px; }
+  .bar { padding: 12px 16px 20px; background: var(--card); border-top: 1px solid var(--line); }
+  .btn { width: 100%; border: 0; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 600; background: var(--primary); color: var(--primary-ink); cursor: pointer; display: flex; justify-content: space-between; }
+  .btn.ghost { background: var(--bg); color: var(--ink); justify-content: center; }
+  .btn:disabled { opacity: .45; }
+  .social { width: calc(100% - 32px); margin: 6px 16px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font-size: 15px; font-weight: 600; color: var(--ink); opacity: .55; cursor: not-allowed; }
+  .social small { font-weight: 400; color: var(--muted); font-size: 11px; }
+  .or { display: flex; align-items: center; gap: 10px; margin: 14px 16px; color: var(--muted); font-size: 12px; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .testacct { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 16px; }
+  .testacct button { text-align: left; padding: 10px; border-radius: 10px; border: 1px dashed var(--line); background: var(--bg); cursor: pointer; font-size: 13px; color: var(--ink); }
+  .testacct small { display: block; color: var(--muted); font-size: 11px; }
+  /* item sheet */
+  .sheet-bg { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: none; z-index: 5; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; top: 60px; background: var(--card); border-radius: 20px 20px 0 0; display: flex; flex-direction: column; z-index: 6; transform: translateY(105%); transition: transform .25s; }
+  .sheet.on { transform: none; }
+  .sheet .hero { height: 120px; background: #fde68a; display: grid; place-items: center; font-size: 60px; border-radius: 20px 20px 0 0; position: relative; }
+  .sheet .x { position: absolute; top: 10px; right: 12px; border: 0; background: #fff; border-radius: 999px; width: 32px; height: 32px; cursor: pointer; }
+  .grp { padding: 10px 16px; border-bottom: 8px solid var(--bg); }
+  .grp h4 { margin: 0 0 2px; font-size: 15px; display: flex; justify-content: space-between; }
+  .grp small { color: var(--muted); font-size: 12px; }
+  .req { font-size: 11px; background: var(--ink); color: #fff; padding: 2px 6px; border-radius: 6px; }
+  .req.done { background: var(--ok); }
+  .opt { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; gap: 8px; }
+  .opt label { display: flex; gap: 10px; align-items: center; flex: 1; cursor: pointer; }
+  .opt .mini { display: flex; gap: 4px; }
+  .opt .mini button { border: 1px solid var(--line); background: #fff; border-radius: 8px; font-size: 11px; padding: 4px 6px; cursor: pointer; }
+  .opt .mini button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .removed { text-decoration: line-through; color: var(--muted); }
+  /* cart & checkout */
+  .line { background: var(--card); margin: 8px 16px; padding: 12px; border-radius: var(--radius); font-size: 14px; }
+  .line .mods { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .totals { margin: 8px 16px; background: var(--card); border-radius: var(--radius); padding: 12px; font-size: 14px; }
+  .totals div { display: flex; justify-content: space-between; padding: 3px 0; }
+  .totals .big { font-weight: 700; font-size: 16px; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
+  .field { margin: 8px 16px; }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field input, .field select, .field textarea { font-family: inherit; width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line); font-size: 15px; background: #fff; }
+  .chips { display: flex; gap: 8px; margin: 8px 16px; }
+  .chips button { flex: 1; border: 1px solid var(--line); background: #fff; padding: 10px; border-radius: 10px; cursor: pointer; }
+  .chips button.on { border-color: var(--primary); background: #fff1f2; font-weight: 600; }
+  .pay { margin: 8px 16px; padding: 12px; border: 1px dashed #a8a29e; border-radius: 12px; font-size: 13px; color: var(--muted); }
+  .pay .ap { background: #000; color: #fff; text-align: center; padding: 12px; border-radius: 10px; font-weight: 600; margin-bottom: 8px; }
+  /* status */
+  .steps { margin: 16px; background: var(--card); border-radius: var(--radius); padding: 16px; }
+  .step { display: flex; gap: 12px; align-items: center; padding: 8px 0; color: var(--muted); }
+  .step .dot { width: 14px; height: 14px; border-radius: 999px; background: var(--line); }
+  .step.done { color: var(--ink); } .step.done .dot { background: var(--ok); }
+  .step.now { color: var(--ink); font-weight: 600; } .step.now .dot { background: var(--warn); box-shadow: 0 0 0 4px #fde68a; }
+  /* admin */
+  .admin-top { background: var(--ink); color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .admin-top b { font-size: 16px; }
+  .status-toggle { display: flex; gap: 4px; }
+  .status-toggle span { padding: 4px 10px; border-radius: 999px; font-size: 12px; background: #44403c; }
+  .status-toggle span.on { background: var(--ok); }
+  .kds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; flex: 1; overflow: auto; }
+  .col h5 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; color: var(--muted); }
+  .ticket { background: #fff; border-radius: 10px; padding: 10px; margin-bottom: 10px; font-size: 13px; border-top: 5px solid var(--warn); font-family: ui-monospace, Consolas, monospace; }
+  .ticket.new { border-top-color: var(--primary); animation: flash 1.2s 3; }
+  .ticket.ready { border-top-color: var(--ok); }
+  .ticket .hd { display: flex; justify-content: space-between; font-weight: 700; }
+  .ticket .m { padding-left: 14px; }
+  .ticket .no { color: #b91c1c; } .ticket .add { color: var(--ok); } .ticket .allergy { background: #fee2e2; color: #991b1b; padding: 4px; border-radius: 4px; margin-top: 6px; }
+  .ticket button { margin-top: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: var(--ink); color: #fff; cursor: pointer; font-family: system-ui; }
+  @keyframes flash { 50% { background: #fef3c7; } }
+  .row { display: flex; justify-content: space-between; align-items: center; background: var(--card); margin: 6px 16px; padding: 12px; border-radius: 12px; font-size: 14px; }
+  .switch { width: 44px; height: 26px; border-radius: 999px; background: var(--ok); position: relative; cursor: pointer; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 21px; width: 20px; height: 20px; border-radius: 999px; background: #fff; transition: left .15s; }
+  .switch.off { background: #a8a29e; } .switch.off::after { left: 3px; }
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 16px; }
+  .kpi { background: var(--card); border-radius: 12px; padding: 12px; }
+  .kpi b { display: block; font-size: 22px; } .kpi small { color: var(--muted); }
+  .email { margin: 12px 16px; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+  .email .eh { background: var(--header); color: var(--primary); padding: 16px; font-weight: 700; }
+  .email .eb { padding: 16px; font-size: 14px; }
+  .block { border: 1px dashed #a8a29e; border-radius: 10px; padding: 10px; margin: 8px 0; font-size: 13px; }
+  .call { margin: 12px 16px; background: #fff; border-radius: 12px; padding: 12px; font-size: 14px; }
+  .call p { margin: 6px 0; }
+  .call .a { color: var(--primary); } .call .fn { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); background: var(--bg); padding: 4px 6px; border-radius: 6px; }
+  /* home */
+  .hero-home { background: radial-gradient(circle at 80% 0%, #3f3f46, var(--header) 70%); color: #fff; padding: 36px 20px 22px; border-bottom: 4px solid var(--primary); }
+  .brandmark { font-size: 44px; font-weight: 900; letter-spacing: 2px; line-height: 1; color: var(--primary); text-shadow: 0 0 18px rgba(245,165,36,.45); }
+  .brandsub { font-size: 12px; letter-spacing: 3px; opacity: .8; margin-top: 6px; }
+  .tagline { font-size: 15px; margin: 14px 0 10px; opacity: .92; }
+  .open-row { font-size: 13px; display: flex; align-items: center; gap: 8px; opacity: .9; margin-bottom: 16px; }
+  .live-dot { width: 8px; height: 8px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
+  .btn.cta { font-size: 17px; padding: 16px; }
+  .h-sec { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 16px 4px; }
+  .h-sec h2 { margin: 0; font-size: 18px; }
+  .h-sec a { font-size: 13px; color: var(--muted); cursor: pointer; }
+  .carousel { display: flex; gap: 10px; overflow-x: auto; padding: 8px 16px 4px; scroll-snap-type: x mandatory; }
+  .sp { flex: none; width: 200px; background: var(--card); border-radius: var(--radius); overflow: hidden; scroll-snap-align: start; cursor: pointer; }
+  .sp .ph { height: 110px; background: #fde68a; display: grid; place-items: center; font-size: 52px; position: relative; }
+  .sp .badge { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--header); color: var(--primary); }
+  .sp .bd { padding: 10px 12px 12px; }
+  .sp h3 { margin: 0; font-size: 15px; } .sp p { margin: 4px 0 8px; font-size: 12px; color: var(--muted); }
+  .sp .add { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; }
+  .sp .add span:last-child { background: var(--primary); color: var(--primary-ink); border-radius: 999px; width: 28px; height: 28px; display: grid; place-items: center; }
+  .ev { display: flex; gap: 12px; align-items: center; background: var(--card); margin: 8px 16px; padding: 12px; border-radius: var(--radius); }
+  .ev .date { flex: none; width: 52px; text-align: center; background: var(--header); color: #fff; border-radius: 10px; padding: 6px 0; }
+  .ev .date b { display: block; font-size: 20px; color: var(--primary); } .ev .date small { font-size: 11px; letter-spacing: 1px; }
+  .ev h3 { margin: 0; font-size: 15px; } .ev p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
+  /* bottom tab bar */
+  .tabbar { display: flex; background: var(--header); padding: 6px 4px 14px; border-top: 1px solid #27272a; }
+  .tabbar.hide { display: none; }
+  .tabbar button { flex: 1; background: none; border: 0; color: #a1a1aa; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 0; min-height: 44px; }
+  .tabbar button.on { color: var(--primary); }
+  .tabbar .ic { font-size: 20px; position: relative; filter: grayscale(1); opacity: .7; }
+  .tabbar button.on .ic { filter: none; opacity: 1; }
+  .tabbar .order .ic { background: var(--primary); width: 46px; height: 46px; border-radius: 999px; display: grid; place-items: center; margin-top: -20px; filter: none; opacity: 1; box-shadow: 0 0 0 4px var(--header); }
+  .tabbar .order { color: var(--primary); }
+  .tabbar i { position: absolute; top: -2px; right: -4px; font-style: normal; font-size: 10px; font-weight: 700; background: #ef4444; color: #fff; border-radius: 999px; min-width: 18px; height: 18px; display: grid; place-items: center; }
+  .bar { padding-bottom: 12px; }
+  .phone.has-tabs .screen .bar { padding-bottom: 30px; } /* room for the raised Order button */
+  /* view toggle */
+  .viewtoggle { width: 100%; display: flex; justify-content: center; }
+  .viewtoggle div { display: inline-flex; background: #fff; border: 1px solid #a8a29e; border-radius: 999px; padding: 3px; }
+  .viewtoggle button { border: 0; background: none; padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer; color: #57534e; }
+  .viewtoggle button.on { background: var(--header); color: var(--primary); }
+  .wrap.desk .note { display: none; }
+  .chrome, .nav-brand { display: none; }
+
+  /* ---- desktop layout: same screens, wider rules ---- */
+  .phone.desktop { width: min(1200px, 100%); height: 780px; border: 1px solid #a8a29e; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+  .phone.desktop .screen { container-type: inline-size; }
+  .phone.desktop .chrome { display: flex; order: -2; align-items: center; gap: 10px; padding: 8px 12px; background: #e7e5e4; border-bottom: 1px solid #d6d3d1; font-size: 12px; color: #57534e; }
+  .chrome .dots i { display: inline-block; width: 10px; height: 10px; border-radius: 999px; background: #a8a29e; margin-right: 5px; }
+  .chrome .url { flex: 1; max-width: 480px; background: #fff; border-radius: 6px; padding: 4px 10px; }
+  /* tab bar becomes the top nav */
+  .phone.desktop .tabbar { order: -1; align-items: center; gap: 4px; padding: 10px 24px; border-top: 0; border-bottom: 3px solid var(--primary); }
+  .phone.desktop .nav-brand { display: block; margin-right: auto; color: var(--primary); font-weight: 900; letter-spacing: 2px; font-size: 22px; cursor: pointer; }
+  .phone.desktop .tabbar button { flex: none; flex-direction: row; font-size: 14px; padding: 8px 14px; min-height: 0; color: #d4d4d8; border-radius: 999px; }
+  .phone.desktop .tabbar button.on { background: #27272a; color: var(--primary); }
+  .phone.desktop .tabbar .ic { display: none; }
+  .phone.desktop .tabbar .order { order: 9; margin-left: 8px; background: var(--primary); color: var(--primary-ink); font-weight: 700; gap: 6px; }
+  .phone.desktop .tabbar .order .ic { display: inline-block; width: auto; height: auto; margin: 0; background: none; box-shadow: none; font-size: 15px; }
+  /* centered content column */
+  .phone.desktop .scroll { --gut: max(24px, calc((100cqw - 1080px) / 2)); padding: 0 var(--gut) 24px; }
+  .phone.desktop .scroll > *, .phone.desktop .scroll .field { margin-left: 0; margin-right: 0; }
+  .phone.desktop :is(#s-cart, #s-checkout, #s-status, #s-account, #s-receipt, #s-page, #s-privacy, #s-terms) .scroll { --gut: max(24px, calc((100cqw - 720px) / 2)); }
+  .phone.desktop header.top { padding: 32px max(24px, calc((100cqw - 1080px) / 2)) 20px; }
+  .phone.desktop :is(#s-cart, #s-checkout, #s-status, #s-account, #s-page, #s-privacy, #s-terms) header.top { padding-left: max(24px, calc((100cqw - 720px) / 2)); }
+  .phone.desktop header.top h1 { font-size: 30px; }
+  .phone.desktop .screen > .bar { display: flex; justify-content: flex-end; padding: 12px max(24px, calc((100cqw - 1080px) / 2)); }
+  .phone.desktop .screen > .bar .btn { width: 380px; }
+  .phone.desktop #s-home > .bar { display: none; } /* nav already has Order */
+  .phone.desktop .tabs, .phone.desktop .sec, .phone.desktop .h-sec { padding-left: 0; padding-right: 0; }
+  /* home */
+  .phone.desktop .scroll > .hero-home { margin: 0 calc(-1 * var(--gut)); padding: 80px var(--gut) 64px; }
+  .phone.desktop .brandmark { font-size: 96px; }
+  .phone.desktop .brandsub { font-size: 14px; }
+  .phone.desktop .tagline { font-size: 20px; max-width: 560px; }
+  .phone.desktop .hero-home .cta { width: 300px; }
+  .phone.desktop .h-sec { padding-top: 28px; }
+  .phone.desktop .carousel { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; overflow: visible; padding: 8px 0; }
+  .phone.desktop .sp { width: auto; transition: transform .15s; } .phone.desktop .sp:hover { transform: translateY(-3px); }
+  .phone.desktop .sp .ph { height: 150px; }
+  .phone.desktop :is(#events, #events-full) { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0 16px; }
+  .phone.desktop .ev { margin-left: 0; margin-right: 0; }
+  /* menu grid */
+  .phone.desktop #menu-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .phone.desktop #menu-list .item { margin: 0; }
+  .phone.desktop .item:not(.sold):hover { box-shadow: 0 0 0 2px var(--primary); }
+  /* item sheet becomes a centered modal */
+  .phone.desktop .sheet { left: 50%; right: auto; top: 50%; bottom: auto; width: min(560px, 92%); height: 84%; border-radius: 16px; transform: translate(-50%, -46%); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+  .phone.desktop .sheet.on { transform: translate(-50%, -50%); opacity: 1; pointer-events: auto; }
+  .phone.desktop .sheet .hero { border-radius: 16px 16px 0 0; }
+  .phone.desktop .kpis { grid-template-columns: repeat(4, 1fr); }
+  .phone.desktop .scroll > .foot { margin: 40px calc(-1 * var(--gut)) -24px; padding: 40px var(--gut) 24px; }
+  .phone.desktop .foot .fcols { grid-template-columns: 1.4fr 1fr 1fr 1fr; }
+
+  /* footer */
+  .foot { background: var(--header); color: #d4d4d8; padding: 28px 20px 20px; margin-top: 24px; font-size: 13px; }
+  .foot .fb { color: var(--primary); font-weight: 900; letter-spacing: 2px; font-size: 20px; }
+  .foot .fcols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 16px 0 20px; }
+  .foot h4 { margin: 0 0 6px; color: #fff; font-size: 13px; }
+  .foot a { display: block; color: #d4d4d8; padding: 3px 0; cursor: pointer; }
+  .foot a:hover { color: var(--primary); }
+  .foot .legal { border-top: 1px solid #3f3f46; padding-top: 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; color: #a1a1aa; font-size: 12px; }
+  .foot .legal a { display: inline; color: #a1a1aa; padding: 0; }
+  /* content pages */
+  .pg-body { padding: 4px 16px 8px; font-size: 14px; line-height: 1.6; }
+  .pg-body h3 { font-size: 15px; margin: 18px 0 4px; }
+  .draftnote { margin: 12px 16px; padding: 10px 12px; border-radius: 10px; background: #fef3c7; color: #92400e; font-size: 12px; }
+  .pk { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin: 10px 0; }
+  .pk div { background: var(--card); border-radius: 12px; padding: 12px; font-size: 13px; }
+  .pk b { display: block; font-size: 15px; margin-bottom: 2px; }
+  .thanks { margin: 16px; padding: 24px 16px; text-align: center; background: var(--card); border-radius: var(--radius); }
+  .hp { position: absolute; left: -9999px; }
+  /* admin bits */
+  .admin-top button { background: var(--primary); color: var(--primary-ink); border: 0; border-radius: 999px; padding: 7px 14px; font-weight: 700; cursor: pointer; }
+  .admin-form { background: var(--card); margin: 12px 16px; border-radius: var(--radius); padding: 8px 0 12px; border: 2px solid var(--primary); }
+  .admin-form .field { margin: 8px 12px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .two > *, .two input, .two select { min-width: 0; }
+  .admin-form .two .field:first-child { margin-right: 4px; } .admin-form .two .field:last-child { margin-left: 4px; }
+  .drop { margin: 8px 12px; border: 2px dashed #a8a29e; border-radius: 10px; padding: 14px; text-align: center; color: var(--muted); font-size: 13px; }
+  .chk { display: flex; gap: 8px; align-items: center; margin: 8px 12px; font-size: 14px; }
+  .mrow { display: flex; align-items: center; gap: 10px; background: var(--card); margin: 6px 16px; padding: 10px 12px; border-radius: 12px; font-size: 14px; }
+  .mrow .grow { flex: 1; min-width: 0; }
+  .mrow small { color: var(--muted); display: block; }
+  .ibtn { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 5px 9px; cursor: pointer; font-size: 13px; }
+  .kind { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--bg); color: #57534e; }
+  .kind.new { background: #fee2e2; color: #991b1b; }
+  .cnt { font-style: normal; background: #ef4444; color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; margin-left: 4px; }
+  /* scheduling */
+  .weeknav { display: flex; align-items: center; justify-content: space-between; margin: 12px 16px 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 16px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+  .sgrid-wrap { overflow-x: auto; margin: 4px 16px; background: var(--card); border-radius: 12px; }
+  .sgrid { border-collapse: collapse; font-size: 12px; min-width: 620px; width: 100%; }
+  .sgrid th, .sgrid td { border: 1px solid var(--line); padding: 4px; vertical-align: top; }
+  .sgrid th { background: var(--bg); font-weight: 600; }
+  .sgrid th:first-child, .sgrid td.emp { position: sticky; left: 0; background: var(--card); z-index: 1; min-width: 88px; text-align: left; }
+  .sgrid td.cell { height: 46px; min-width: 64px; cursor: pointer; }
+  .sgrid td.cell:hover { box-shadow: inset 0 0 0 2px var(--primary); }
+  .sgrid td.prefer { background: #dcfce7; }
+  .sgrid td.no { background: repeating-linear-gradient(45deg, #f5f5f4, #f5f5f4 4px, #e7e5e4 4px, #e7e5e4 8px); }
+  .shift { display: block; border-radius: 6px; padding: 3px 4px; color: #fff; font-weight: 700; font-size: 11px; margin-bottom: 2px; white-space: nowrap; }
+  .shift.warn { outline: 2px solid #dc2626; outline-offset: 1px; }
+  .warnbox, .okbox { margin: 8px 12px; padding: 8px 10px; border-radius: 8px; font-size: 12px; }
+  .warnbox { background: #fef2f2; color: #991b1b; } .okbox { background: #f0fdf4; color: #166534; }
+  .clockcard { margin: 16px; background: var(--header); color: #fff; border-radius: 20px; padding: 24px 16px; text-align: center; }
+  .clockcard .now { font-size: 46px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .bigbtn { width: 100%; border: 0; border-radius: 16px; padding: 18px; font-size: 18px; font-weight: 800; cursor: pointer; margin-top: 12px; }
+  .bigbtn.in { background: #22c55e; color: #052e16; } .bigbtn.out { background: #ef4444; color: #fff; }
+  .bigbtn.brk { background: #3f3f46; color: #fff; font-size: 15px; padding: 12px; }
+  .avrow { display: flex; align-items: center; justify-content: space-between; background: var(--card); margin: 6px 16px; padding: 8px 12px; border-radius: 12px; font-size: 14px; }
+  .seg { display: flex; gap: 4px; }
+  .seg button { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 7px 9px; font-size: 12px; cursor: pointer; }
+  .seg button.on.prefer { background: #16a34a; color: #fff; border-color: #16a34a; }
+  .seg button.on.ok { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .seg button.on.no { background: #dc2626; color: #fff; border-color: #dc2626; }
+  .shiftcard { margin: 12px 16px; background: var(--card); border-radius: var(--radius); padding: 14px; border-left: 6px solid var(--primary); }
+  .shiftcard .big { font-size: 22px; font-weight: 800; margin: 2px 0; }
+  .dayrow { display: flex; gap: 12px; align-items: center; background: var(--card); margin: 6px 16px; padding: 10px 12px; border-radius: 12px; font-size: 14px; }
+  .dayrow .d { width: 52px; font-weight: 700; flex: none; } .dayrow.off { opacity: .55; } .dayrow.today { box-shadow: 0 0 0 2px var(--primary); }
+  .toast { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 14px; border-radius: 999px; font-size: 13px; z-index: 9; display: none; white-space: nowrap; max-width: 92%; overflow: hidden; text-overflow: ellipsis; }
+  .ev.link { cursor: pointer; }
+  .ev .go { margin-left: auto; color: var(--primary); font-weight: 700; font-size: 13px; white-space: nowrap; }
+  .note { max-width: 260px; font-size: 13px; color: #44403c; background: #fff; border-radius: 12px; padding: 14px; align-self: flex-start; }
+  .note h3 { margin: 0 0 6px; font-size: 14px; }
+  @media (max-width: 420px) { .phone { border-width: 0; border-radius: 0; height: auto; min-height: 90vh; } .wrap { padding: 0; } .note { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="viewtoggle" id="viewtoggle"><div>
+    <button data-v="mobile" class="on">📱 Mobile</button><button data-v="desktop">🖥 Desktop</button>
+  </div></div>
+  <div class="nav" id="nav">
+    <button data-s="home" class="on">Home</button>
+    <button data-s="menu">Menu</button>
+    <button data-s="cart">Cart</button>
+    <button data-s="checkout">Checkout</button>
+    <button data-s="status">Order status</button>
+    <button data-s="events">Events</button>
+    <button data-s="login">Sign in</button>
+    <button data-s="account">Account</button>
+    <button data-s="page" data-p="band">Book a band</button>
+    <button data-s="page" data-p="private">Private events</button>
+    <button data-s="page" data-p="jobs">Jobs</button>
+    <button data-s="page" data-p="catering">Catering</button>
+    <button data-s="privacy">Privacy</button>
+    <button data-s="terms">Terms</button>
+    <button data-s="receipt">Receipt email</button>
+    <button data-s="voice">Voice call</button>
+    <span class="sep"></span>
+    <button data-s="adminreq">Admin: Requests</button>
+    <button data-s="kitchen">Admin: Kitchen</button>
+    <button data-s="admin">Admin: Home</button>
+    <button data-s="menuadmin">Admin: Menu / 86</button>
+    <button data-s="news">Admin: Newsletter</button>
+    <button data-s="adminevents">Admin: Events</button>
+    <button data-s="adminpages">Admin: Pages &amp; forms</button>
+    <button data-s="adminmore">Admin: More</button>
+    <button data-s="adminsched">Admin: Schedule</button>
+    <button data-s="admintime">Admin: Timesheets</button>
+    <span class="sep"></span>
+    <button data-s="kitchen" data-k="1">Kitchen tablet: Orders</button>
+    <button data-s="k86" data-k="1">Kitchen tablet: 86 board</button>
+    <span class="sep"></span>
+    <button data-s="staffjoin">Staff: Join</button>
+    <button data-s="staffsched">Staff: Schedule</button>
+    <button data-s="staffclock">Staff: Clock</button>
+    <button data-s="staffavail">Staff: Availability</button>
+    <button data-s="staffcover">Staff: Shift cover</button>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url">🔒 thehoodpalmdesert.com</span></div>
+    <!-- HOME -->
+    <section class="screen on" id="s-home">
+      <div class="scroll">
+        <div class="hero-home">
+          <div class="brandmark">THE HOOD</div>
+          <div class="brandsub">BAR &amp; PIZZA · PALM DESERT</div>
+          <p class="tagline">Scratch-made pizza, cold drinks, live music, pool &amp; arcade.</p>
+          <div class="open-row"><span class="live-dot"></span>Open now · until 2 AM · pickup in ~20 min</div>
+          <button class="btn cta" onclick="go('menu')"><span>Order now</span><span>→</span></button>
+        </div>
+
+        <div class="h-sec"><h2>Specials &amp; new</h2><a onclick="go('menu')">See menu</a></div>
+        <div class="carousel" id="specials"></div>
+
+        <div class="h-sec"><h2>Upcoming events</h2><a onclick="go('events')">All events</a></div>
+        <div id="events"></div>
+
+        <div class="h-sec"><h2>Visit us</h2></div>
+        <div class="line">📍 74360 Hwy 111, Palm Desert, CA 92260<br><span class="mods">Open every day 2 PM – 2 AM · Patio · Pool tables · Arcade</span>
+          <div class="chips" style="margin:10px 0 0"><button>Directions</button><button>Call</button></div></div>
+        <div class="line"><b>Get bingo nights &amp; deals in your inbox</b>
+          <div style="display:flex;gap:8px;margin-top:8px"><input placeholder="you@email.com" style="flex:1;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:14px"><button class="btn" style="width:auto;padding:10px 14px;font-size:14px">Join</button></div></div>
+        <footer class="foot" data-foot></footer>
+      </div>
+      <div class="bar"><button class="btn" onclick="go('menu')"><span>Order now</span><span>Pickup ~20 min →</span></button></div>
+    </section>
+
+    <!-- MENU -->
+    <section class="screen" id="s-menu">
+      <header class="top">
+        <h1>The Hood Bar &amp; Pizza</h1>
+        <p><span class="pill">● Open till 2 AM</span> &nbsp;Pickup in ~20 min · 74360 Hwy 111</p>
+      </header>
+      <div class="scroll">
+        <div class="tabs"><span class="on">Pizza</span><span>Starters</span><span>Salads &amp; Phillys</span><span>Events</span><span>Bar (dine-in)</span></div>
+        <div class="line" style="background:#27272a;color:#fff">🎤 <b>Tonight:</b> Drag Queen Bingo · 8 PM <span style="color:var(--primary)">→ Events</span></div>
+        <div class="sec">Pizza &amp; Starters</div>
+        <div id="menu-list"></div>
+        <footer class="foot" data-foot></footer>
+      </div>
+      <div class="bar"><button class="btn" id="cart-btn" onclick="go('cart')"><span>View order · <span id="cart-count">0</span></span><span id="cart-total">$0.00</span></button></div>
+    </section>
+
+    <!-- CART -->
+    <section class="screen" id="s-cart">
+      <header class="top"><h1>Your order</h1><p>Pickup · The Hood Bar &amp; Pizza, Hwy 111</p></header>
+      <div class="scroll" id="cart-list"></div>
+      <div class="bar"><button class="btn" onclick="go('checkout')"><span>Checkout</span><span id="cart-total2">$0.00</span></button></div>
+    </section>
+
+    <!-- CHECKOUT -->
+    <section class="screen" id="s-checkout">
+      <header class="top"><h1>Checkout</h1><p>Guest checkout · no account needed</p></header>
+      <div class="scroll">
+        <div class="field"><label>Name</label><input value="Joe Sample"></div>
+        <div class="field"><label>Phone (for order updates)</label><input value="(555) 010-0134"></div>
+        <div class="field"><label>Email (for receipt)</label><input value="joe@example.com"></div>
+        <div class="field"><label>Pickup time</label><select><option>ASAP (~20 min)</option><option>6:30 PM</option><option>6:45 PM</option><option disabled>7:00 PM — full</option><option>7:15 PM</option></select></div>
+        <div class="sec">Tip</div>
+        <div class="chips" id="tips"><button data-t="0">None</button><button data-t="0.1">10%</button><button data-t="0.15" class="on">15%</button><button data-t="0.2">20%</button></div>
+        <div class="field"><label>Promo code</label><input placeholder="e.g. WELCOME10"></div>
+        <div class="totals" id="co-totals"></div>
+        <div class="pay"><div class="ap"> Pay</div>Stripe Payment Element (card / Apple Pay / Google Pay / Link) renders here.</div>
+        <label style="display:flex;gap:8px;margin:8px 16px 16px;font-size:13px;"><input type="checkbox"> Email me deals and news from The Hood</label>
+      </div>
+      <div class="bar"><button class="btn" onclick="go('status')"><span>Place order</span><span id="co-total">$0.00</span></button></div>
+    </section>
+
+    <!-- STATUS -->
+    <section class="screen" id="s-status">
+      <header class="top"><h1>Order #A042</h1><p>Pickup at 6:30 PM · 74360 Hwy 111</p></header>
+      <div class="scroll">
+        <div class="steps">
+          <div class="step done"><span class="dot"></span>Paid</div>
+          <div class="step done"><span class="dot"></span>Accepted by kitchen</div>
+          <div class="step now"><span class="dot"></span>Preparing — about 12 min</div>
+          <div class="step"><span class="dot"></span>Ready for pickup</div>
+        </div>
+        <div class="line"><b>🔔 Get a notification when it's ready?</b><div class="mods">We'll send one push — no spam.</div><div class="chips" style="margin:10px 0 0"><button class="on">Turn on</button><button>No thanks</button></div></div>
+        <div class="line"><b>📲 Add The Hood to your home screen</b><div class="mods">Reorder in two taps next time.</div></div>
+      </div>
+      <div class="bar"><button class="btn ghost" onclick="go('menu')">Back to menu</button></div>
+    </section>
+
+    <!-- RECEIPT -->
+    <section class="screen" id="s-receipt">
+      <div class="scroll">
+        <div class="email">
+          <div class="eh">The Hood Bar &amp; Pizza — Receipt</div>
+          <div class="eb">
+            <p>Thanks, Joe! Order <b>#A042</b> · Pickup 6:30 PM<br><span style="color:var(--muted)">74360 Hwy 111 · (555) 010-0100</span></p>
+            <div id="receipt-lines"></div>
+            <div class="totals" style="margin:8px 0" id="receipt-totals"></div>
+            <p style="color:var(--muted);font-size:12px">Paid with Visa •••• 4242</p>
+            <button class="btn" style="justify-content:center">Reorder</button>
+            <p style="color:var(--muted);font-size:11px;margin-top:16px">The Hood Bar &amp; Pizza · 74360 Hwy 111, Anytown · Unsubscribe from marketing</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VOICE -->
+    <section class="screen" id="s-voice">
+      <header class="top"><h1>📞 Voice order</h1><p>Retell agent · live transcript (mock)</p></header>
+      <div class="scroll">
+        <div class="call">
+          <p class="a">Agent: Thanks for calling The Hood! Is this for pickup?</p>
+          <p>Caller: Yeah, can I get an OG Combo, hold the sausage, add jalapeños?</p>
+          <p class="fn">search_menu("og combo") → pizza-og-combo<br>add_to_cart(sausage:remove, jalapeno:add)</p>
+          <p class="fn">→ ok:false · required_group "Size"</p>
+          <p class="a">Agent: Sure — a jumbo slice or a whole pie?</p>
+          <p>Caller: Whole pie. Oh, and a pastrami sandwich.</p>
+          <p class="fn">update_line(l1, size=whole) → $29.50<br>search_menu("pastrami") → no match · closest: Beef Philly</p>
+          <p class="a">Agent: I don't see a pastrami sandwich on tonight's menu — we do have a Beef Philly with fries. Want that?</p>
+          <p>Caller: Sure. That's it. Name's Joe.</p>
+          <p class="fn">add_to_cart(beef-philly) · get_cart → read-back</p>
+          <p class="a">Agent: Whole OG Combo, no sausage, add jalapeños, and a Beef Philly with fries — forty-four forty-five before tax. Right?</p>
+          <p>Caller: Yep.</p>
+          <p class="fn">set_customer · choose_pickup_time(asap) → 6:30 PM<br>submit_order(pay=link) → SMS payment link sent</p>
+          <p class="a">Agent: Great, Joe — I texted you a payment link. It'll be ready around 6:30.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- KITCHEN -->
+    <section class="screen" id="s-kitchen">
+      <div class="admin-top"><b>Kitchen · Hwy 111</b><div class="status-toggle"><span class="on">Open</span><span>Busy +15</span><span>Paused</span></div></div>
+      <div class="kds">
+        <div class="col"><h5>New (2)</h5>
+          <div class="ticket new"><div class="hd"><span>#A042 · voice</span><span>6:30</span></div>Joe · 555-0134<br>1× WHOLE OG COMBO<div class="m"><span class="no">NO Sausage</span><br><span class="add">ADD Jalapeños</span></div>1× BEEF PHILLY<div class="allergy">⚠ ALLERGY: nut allergy</div><button>Start</button></div>
+          <div class="ticket new"><div class="hd"><span>#A043 · web</span><span>ASAP</span></div>Maria<br>1× WHOLE SLAUGHTER HOUSE<div class="m"><span class="add">HALF(L) Pineapple</span></div>1× WINGS · DAYTONA<button>Start</button></div>
+        </div>
+        <div class="col"><h5>Preparing (1)</h5>
+          <div class="ticket"><div class="hd"><span>#A040 · web</span><span>6:20</span></div>Sam<br>2× SLICE JALAPEÑO POPPER<div class="m"><span class="no">NO Bacon</span></div>1× KILLER TOTS<button>Ready</button></div>
+        </div>
+        <div class="col"><h5>Ready (1)</h5>
+          <div class="ticket ready"><div class="hd"><span>#A039 · web</span><span>6:10</span></div>Lee<br>1× CHEESIER BREAD<button>Picked up</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN HOME -->
+    <section class="screen" id="s-admin">
+      <div class="admin-top"><b>The Hood · Dashboard</b><span style="font-size:12px">Owner</span></div>
+      <div class="scroll">
+        <div class="kpis">
+          <div class="kpi"><small>Sales today</small><b>$1,284</b></div>
+          <div class="kpi"><small>Orders</small><b>47</b></div>
+          <div class="kpi"><small>Avg ticket</small><b>$27.32</b></div>
+          <div class="kpi"><small>Voice orders</small><b>11</b></div>
+        </div>
+        <div class="mrow" style="cursor:pointer" onclick="go('adminreq')"><span>📬</span><div class="grow"><b id="home-req">New requests</b><small>Bands, private events, catering, job applications</small></div>›</div>
+        <div class="mrow" style="cursor:pointer" onclick="go('adminsched')"><span>🔁</span><div class="grow"><b id="home-cover">Shift cover requests</b><small>Staff giving away or picking up shifts</small></div>›</div>
+        <div class="row">Online ordering<span class="switch"></span></div>
+        <div class="row">Busy mode (+15 min)<span class="switch off"></span></div>
+        <div class="row">Payments<span style="color:var(--ok);font-size:13px">● Stripe Connect · payouts on</span></div>
+        <div class="row">Location<span style="font-size:13px;color:var(--muted)">Hwy 111 ▾ (add more in Settings)</span></div>
+      </div>
+    </section>
+
+    <!-- MENU ADMIN -->
+    <section class="screen" id="s-menuadmin">
+      <div class="admin-top"><b>Menu · 86 board</b><span style="font-size:12px">Hwy 111</span></div>
+      <div class="scroll" id="admin-86"></div>
+    </section>
+
+    <!-- NEWSLETTER -->
+    <section class="screen" id="s-news">
+      <div class="admin-top"><b>Newsletter</b><span style="font-size:12px">1,208 subscribers</span></div>
+      <div class="scroll">
+        <div class="field"><label>Subject</label><input value="👑 Drag Queen Bingo Tuesday + $2 off whole pies"></div>
+        <div class="field"><label>Audience</label><select><option>All active subscribers (1,208)</option><option>Ordered in last 30 days (412)</option><option>Lapsed 60+ days (288)</option></select></div>
+        <div class="email"><div class="eh">The Hood Bar &amp; Pizza</div><div class="eb">
+          <div class="block">📅 Event block — Drag Queen Bingo · Tue 8 PM · [Add to calendar]</div>
+          <div class="block">🍕 Menu item card — Whole OG Combo · [Order ahead]</div>
+          <div class="block">🏷 Promo block — code BINGO2 (auto-created on send)</div>
+          <div class="block" style="text-align:center;color:var(--muted)">＋ Add block</div>
+        </div></div>
+        <div class="chips"><button>Send test</button><button>Schedule</button><button class="on">Send now</button></div>
+      </div>
+    </section>
+
+    <!-- EVENTS -->
+    <section class="screen" id="s-events">
+      <header class="top"><h1>Events</h1><p>Live music, bingo, karaoke · 74360 Hwy 111</p></header>
+      <div class="scroll">
+        <div class="tabs"><span class="on">This week</span><span>Weekly</span><span>Music</span><span>Bingo</span></div>
+        <div id="events-full"></div>
+        <div class="line"><b>🔔 Never miss bingo night</b><div class="mods">Get the weekly events email.</div>
+          <div class="chips" style="margin:10px 0 0"><button class="on">Subscribe</button></div></div>
+        <footer class="foot" data-foot></footer>
+      </div>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section class="screen" id="s-account">
+      <header class="top"><h1>Account</h1><p>Signed in as <span id="acct-email">customer@thehoodpalmdesert.com</span></p></header>
+      <div class="scroll">
+        <div class="sec">Recent orders</div>
+        <div class="line"><div style="display:flex;justify-content:space-between"><b>Oct 24 · #A031</b><span>$32.08</span></div>
+          <div class="mods">Whole OG Combo (no sausage, + jalapeños)</div>
+          <div class="chips" style="margin:10px 0 0"><button class="on" onclick="go('cart')">Reorder</button></div></div>
+        <div class="line"><div style="display:flex;justify-content:space-between"><b>Oct 17 · #A007</b><span>$18.12</span></div>
+          <div class="mods">Chicken Wings (Daytona) · Killer Tots</div>
+          <div class="chips" style="margin:10px 0 0"><button>Reorder</button></div></div>
+        <div class="sec">Settings</div>
+        <div class="row">Order-ready notifications<span class="switch"></span></div>
+        <div class="row">Deals &amp; events email<span class="switch"></span></div>
+        <div class="row">Saved favorites<span style="color:var(--muted)">2 ›</span></div>
+        <div class="row" style="cursor:pointer" onclick="go('login')">Sign out<span style="color:var(--muted)">›</span></div>
+        <footer class="foot" data-foot></footer>
+      </div>
+    </section>
+
+    <!-- SIGN IN (one page for every account type) -->
+    <section class="screen" id="s-login">
+      <header class="top"><h1>Sign in</h1><p>Customers, team members and owners all sign in here</p></header>
+      <div class="scroll">
+        <div class="field"><label>Email</label><input id="li-email" type="email" placeholder="you@example.com"></div>
+        <div class="field"><label>Password</label><input id="li-pass" type="password" placeholder="••••••••"></div>
+        <div id="li-err" style="margin:4px 16px;font-size:13px;color:#b91c1c"></div>
+        <div style="margin:8px 16px"><button class="btn" style="justify-content:center" onclick="signIn()">Sign in</button></div>
+        <p style="margin:6px 16px;font-size:13px"><a style="color:var(--ink);font-weight:600;cursor:pointer" onclick="toast('Reset link sent (Demo inbox)')">Forgot password?</a> · <a style="color:var(--ink);font-weight:600;cursor:pointer" onclick="toast('Create account: name, email, password')">Create account</a></p>
+        <div class="or">or</div>
+        <button class="social" disabled><b style="color:#4285F4">G</b> Continue with Google <small>· at launch</small></button>
+        <button class="social" disabled><b style="color:#1877F2">f</b> Continue with Facebook <small>· at launch</small></button>
+        <div class="sec">Test accounts (demo only)</div>
+        <div class="testacct" id="li-test"></div>
+        <p style="margin:6px 16px 16px;font-size:12px;color:var(--muted)">Tap one to fill the form. These four accounts exist on every demo site and are switched off when the site goes live.</p>
+      </div>
+    </section>
+
+    <!-- GENERIC CONTENT PAGE (band booking, private events, jobs, any page built in admin) -->
+    <section class="screen" id="s-page">
+      <header class="top"><h1 id="pg-title"></h1><p id="pg-sub"></p></header>
+      <div class="scroll">
+        <div class="pg-body" id="pg-intro"></div>
+        <div id="pg-form"></div>
+        <footer class="foot" data-foot></footer>
+      </div>
+      <div class="bar"><button class="btn" id="pg-submit" onclick="submitPage()"><span id="pg-submit-label">Send</span><span>→</span></button></div>
+    </section>
+
+    <!-- PRIVACY -->
+    <section class="screen" id="s-privacy">
+      <header class="top"><h1>Privacy Policy</h1><p>Last updated October 26, 2026</p></header>
+      <div class="scroll">
+        <div class="draftnote">⚠ Template draft generated from restaurant settings. Have it reviewed by a lawyer before launch.</div>
+        <div class="pg-body">
+          <p>The Hood Bar &amp; Pizza ("we") runs this website and phone ordering line. This policy explains what we collect and why.</p>
+          <h3>What we collect</h3>
+          <p>Name, phone and email when you order, sign up or send a form; your order history; and job applications you submit. Payments are handled by Stripe — we never see or store your full card number.</p>
+          <h3>Phone orders</h3>
+          <p>Calls to our ordering line are answered by an automated assistant and may be recorded and transcribed to fill your order and improve service. You'll be told at the start of the call.</p>
+          <h3>Email &amp; notifications</h3>
+          <p>We send receipts and order updates. Marketing emails only go out if you opt in, and every one has an unsubscribe link.</p>
+          <h3>Cookies</h3>
+          <p>We use essential cookies (your cart, signing in) and privacy-friendly analytics. We don't sell your data or use advertising trackers.</p>
+          <h3>Who we share with</h3>
+          <p>Only service providers that run the site: payments (Stripe), email (Resend), phone ordering (Retell AI), hosting (Vercel), database (Neon).</p>
+          <h3>Your California rights</h3>
+          <p>You can ask to see, correct or delete your personal information, and opt out of any sale or sharing (we don't sell it). Email us to make a request.</p>
+          <h3>Contact</h3>
+          <p>The Hood Bar &amp; Pizza · 74360 Hwy 111, Palm Desert, CA 92260 · privacy@ (email TBD)</p>
+        </div>
+        <footer class="foot" data-foot></footer>
+      </div>
+    </section>
+
+    <!-- TERMS -->
+    <section class="screen" id="s-terms">
+      <header class="top"><h1>Terms of Service</h1><p>Last updated October 26, 2026</p></header>
+      <div class="scroll">
+        <div class="draftnote">⚠ Template draft generated from restaurant settings. Have it reviewed by a lawyer before launch.</div>
+        <div class="pg-body">
+          <h3>Ordering</h3>
+          <p>Menu prices and availability can change. If we can't fill an order we'll cancel it and refund you in full.</p>
+          <h3>Payment &amp; tips</h3>
+          <p>Payments are processed by Stripe. Prices exclude sales tax until checkout. Tips go to our staff.</p>
+          <h3>Pickup</h3>
+          <p>Orders are held for 30 minutes after the pickup time (TBD). Problem with your order? Contact us within 24 hours.</p>
+          <h3>Alcohol</h3>
+          <p>Alcohol is served on-site to guests 21+ with valid ID and is not sold through online ordering.</p>
+          <h3>Events &amp; private bookings</h3>
+          <p>Event times can change. Private bookings are confirmed only by a separate agreement that covers deposits and cancellations.</p>
+          <h3>Promo codes</h3>
+          <p>One per order, no cash value, can't be combined unless stated.</p>
+          <h3>Liability &amp; law</h3>
+          <p>The site is provided as is, to the extent the law allows. These terms are governed by California law.</p>
+        </div>
+        <footer class="foot" data-foot></footer>
+      </div>
+    </section>
+
+    <!-- ADMIN: EVENTS -->
+    <section class="screen" id="s-adminevents">
+      <div class="admin-top"><b>Events</b><button onclick="toggleEvForm(true)">+ Add event</button></div>
+      <div class="scroll">
+        <div class="admin-form" id="ev-form" style="display:none">
+          <div class="field"><label>Event name *</label><input id="ev-title" placeholder="e.g. 🎸 Live Music: The Desert Sons"></div>
+          <div class="two"><div class="field"><label>Date *</label><input type="date" id="ev-date" value="2026-11-07"></div>
+            <div class="field"><label>Start time</label><input type="time" id="ev-time" value="21:00"></div></div>
+          <div class="two"><div class="field"><label>Repeats</label><select id="ev-repeat"><option value="">Does not repeat</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></div>
+            <div class="field"><label>Type</label><select id="ev-cat"><option>Live music</option><option>Bingo</option><option>Karaoke</option><option>Sports</option><option>Other</option></select></div></div>
+          <div class="field"><label>Short description</label><input id="ev-desc" placeholder="Shown under the title"></div>
+          <div class="field"><label>Button links to</label><select id="ev-link"><option value="">No button</option></select></div>
+          <div class="drop">📷 Drop a flyer or photo here (optional)</div>
+          <label class="chk"><input type="checkbox" id="ev-home" checked> Show on home page</label>
+          <label class="chk"><input type="checkbox" id="ev-news"> Add to next newsletter</label>
+          <div class="chips"><button onclick="toggleEvForm(false)">Cancel</button><button class="on" onclick="saveEvent()">Save event</button></div>
+        </div>
+        <div class="sec">Upcoming</div>
+        <div id="admin-ev-list"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN: PAGES & FORMS -->
+    <section class="screen" id="s-adminpages">
+      <div class="admin-top"><b>Pages &amp; forms</b><button onclick="newPage()">+ New page</button></div>
+      <div class="tabs" id="pg-tabs"><span class="on" data-pt="pages">Pages</span><span data-pt="subs">Submissions <i class="cnt" id="sub-cnt"></i></span></div>
+      <div class="scroll">
+        <div id="pg-pages"></div>
+        <div id="pg-editor" style="display:none"></div>
+        <div id="pg-subs" style="display:none"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN: REQUESTS INBOX -->
+    <section class="screen" id="s-adminreq">
+      <div class="admin-top"><b>Requests</b><span class="kind new" id="req-new"></span></div>
+      <div class="scroll">
+        <div class="chips" id="req-filter"></div>
+        <div id="req-list"></div>
+        <p style="margin:8px 16px;font-size:12px;color:var(--muted)">Every form page sends its entries here. Job applications are visible to owners and managers only.</p>
+      </div>
+    </section>
+
+    <!-- KITCHEN TABLET: 86 BOARD -->
+    <section class="screen" id="s-k86">
+      <div class="admin-top"><b>86 board</b><span style="font-size:12px">Kitchen tablet</span></div>
+      <div class="scroll" id="k-86"></div>
+    </section>
+
+    <!-- STAFF: SHIFT COVER -->
+    <section class="screen" id="s-staffcover">
+      <header class="top"><h1>Shift cover</h1><p>Give away a shift or pick one up · your manager approves</p></header>
+      <div class="scroll">
+        <div class="sec">Up for grabs</div>
+        <div id="cv-open"></div>
+        <div class="sec">My shifts</div>
+        <div id="cv-mine"></div>
+        <p style="margin:8px 16px;font-size:12px;color:var(--muted)">You stay on the schedule until your manager approves. Only teammates in the same position can pick up a shift.</p>
+      </div>
+    </section>
+
+    <!-- ADMIN: MORE -->
+    <section class="screen" id="s-adminmore">
+      <div class="admin-top"><b>More</b><span style="font-size:12px">Owner</span></div>
+      <div class="scroll">
+        <div class="mrow" onclick="go('adminreq')" style="cursor:pointer"><span>📬</span><div class="grow">Requests<small>Bands, private events, catering, jobs</small></div><i class="cnt" id="more-cnt"></i>›</div>
+        <div class="mrow" onclick="go('menuadmin')" style="cursor:pointer"><span>🍕</span><div class="grow">Menu &amp; 86 board<small>Items, prices, sold-out toggles</small></div>›</div>
+        <div class="mrow" onclick="go('admintime')" style="cursor:pointer"><span>⏱</span><div class="grow">Timesheets<small>Hours, breaks, payroll export</small></div>›</div>
+        <div class="mrow" onclick="toast('Invite sent by text: HOOD-7Q2K')" style="cursor:pointer"><span>👥</span><div class="grow">Team &amp; access<small>Invite employees, kitchen tablet login, owners &amp; managers</small></div>›</div>
+        <div class="mrow" onclick="go('adminpages')" style="cursor:pointer"><span>📄</span><div class="grow">Pages &amp; forms<small>Build pages and forms, legal pages</small></div>›</div>
+        <div class="mrow" onclick="go('news')" style="cursor:pointer"><span>✉️</span><div class="grow">Newsletter<small>1,208 subscribers</small></div>›</div>
+        <div class="mrow"><span>🧾</span><div class="grow">Orders &amp; refunds</div>›</div>
+        <div class="mrow"><span>📞</span><div class="grow">Phone calls<small>Voice agent call log</small></div>›</div>
+        <div class="mrow"><span>🏷</span><div class="grow">Promo codes</div>›</div>
+        <div class="mrow"><span>📊</span><div class="grow">Reports</div>›</div>
+        <div class="mrow"><span>🕑</span><div class="grow">Hours &amp; closures</div>›</div>
+        <div class="mrow"><span>⚙️</span><div class="grow">Settings<small>Payments, payroll (Gusto), locations, branding</small></div>›</div>
+        <div class="mrow" style="opacity:.6"><span>🛠</span><div class="grow">Webmaster tools<small>Domain, integrations, feature flags, backups · webmaster only</small></div>🔒</div>
+      </div>
+    </section>
+
+    <!-- STAFF: JOIN -->
+    <section class="screen" id="s-staffjoin">
+      <header class="top"><h1>Join the team</h1><p>The Hood Bar &amp; Pizza · you were invited by the owner</p></header>
+      <div class="scroll">
+        <div class="field"><label>Invite code (from your text or email)</label><input value="HOOD-7Q2K"></div>
+        <div class="field"><label>Full name</label><input value="Alex M."></div>
+        <div class="field"><label>Email</label><input value="alex@example.com"></div>
+        <div class="field"><label>Mobile (for shift reminders)</label><input value="(555) 010-0177"></div>
+        <div class="field"><label>Position (set by your manager)</label><select disabled><option>Bartender</option></select></div>
+        <div class="line"><b>No password needed</b><div class="mods">We'll text or email you a sign-in link. Install the app to your home screen for one-tap clock in.</div></div>
+        <p style="margin:12px 16px;font-size:13px;color:var(--muted)">Already on the team? <a style="color:var(--ink);font-weight:600;cursor:pointer" onclick="go('staffsched')">Sign in</a></p>
+      </div>
+      <div class="bar"><button class="btn" onclick="go('staffsched')"><span>Create account</span><span>→</span></button></div>
+    </section>
+
+    <!-- STAFF: SCHEDULE -->
+    <section class="screen" id="s-staffsched">
+      <header class="top"><h1>Hi, Alex 👋</h1><p>Bartender · Week of Oct 26 – Nov 1</p></header>
+      <div class="scroll">
+        <div id="st-next"></div>
+        <div class="chips" id="st-mode"><button class="on" data-m="me">My shifts</button><button data-m="team">Whole team</button></div>
+        <div id="st-week"></div>
+        <div class="line"><b>Can't make a shift?</b><div class="mods">Ask the team to cover it, or request time off. Your manager approves either one.</div>
+          <div class="chips" style="margin:10px 0 0"><button class="on" onclick="go('staffcover')">Shift cover <i class="cnt" id="cv-cnt"></i></button><button onclick="go('staffavail')">Time off</button></div></div>
+      </div>
+    </section>
+
+    <!-- STAFF: CLOCK -->
+    <section class="screen" id="s-staffclock">
+      <header class="top"><h1>Time clock</h1><p id="ck-shift">Today's shift</p></header>
+      <div class="scroll">
+        <div class="clockcard">
+          <div class="now" id="ck-now"></div>
+          <div id="ck-status" style="margin-top:4px;opacity:.85"></div>
+          <div style="font-size:12px;margin-top:10px;color:#86efac">📍 You're at The Hood · location verified</div>
+          <div id="ck-btns"></div>
+        </div>
+        <div class="sec">This week</div>
+        <div id="ck-hist"></div>
+        <p style="margin:8px 16px;font-size:12px;color:var(--muted)">Forgot to clock in or out? Tap an entry to ask your manager for a fix.</p>
+      </div>
+    </section>
+
+    <!-- STAFF: AVAILABILITY -->
+    <section class="screen" id="s-staffavail">
+      <header class="top"><h1>Availability</h1><p>Your manager sees this when building the schedule</p></header>
+      <div class="scroll">
+        <div class="sec">Days I'd like to work</div>
+        <div id="av-days"></div>
+        <div class="sec">Preferred shifts</div>
+        <div class="chips" id="av-window"></div>
+        <div class="field"><label>Max hours per week</label><input type="number" id="av-max" oninput="empOf(ME).max=+this.value||0"></div>
+        <div class="field"><label>Notes for my manager</label><textarea rows="2" id="av-note" placeholder="e.g. Class Tuesday mornings until December" oninput="empOf(ME).note=this.value"></textarea></div>
+        <div class="chips"><button class="on" onclick="toast('Availability saved — your manager will see it');renderAll()">Save availability</button></div>
+        <div class="sec">Time off</div>
+        <div id="av-to"></div>
+        <div class="admin-form">
+          <div class="two"><div class="field"><label>From</label><input type="date" id="to-from" value="2026-11-26"></div><div class="field"><label>To</label><input type="date" id="to-to" value="2026-11-27"></div></div>
+          <div class="field"><label>Reason (optional)</label><input id="to-reason" placeholder="e.g. Family trip"></div>
+          <div class="chips"><button class="on" onclick="requestTimeOff()">Request time off</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN: SCHEDULE BUILDER -->
+    <section class="screen" id="s-adminsched">
+      <div class="admin-top"><b>Schedule</b><span class="kind" id="sched-status"></span></div>
+      <div class="scroll">
+        <div class="weeknav"><button class="ibtn">‹</button><b>Oct 26 – Nov 1</b><button class="ibtn">›</button></div>
+        <div id="to-reqs"></div>
+        <div id="cv-reqs"></div>
+        <div class="admin-form" id="shift-form" style="display:none">
+          <div class="two"><div class="field"><label>Day</label><select id="sf-day" onchange="checkShift(true)"></select></div>
+            <div class="field"><label>Position</label><select id="sf-pos" onchange="checkShift()"></select></div></div>
+          <div class="field"><label>Team member</label><select id="sf-emp" onchange="checkShift()"></select></div>
+          <div class="two"><div class="field"><label>Start</label><input type="time" id="sf-start" onchange="checkShift()"></div>
+            <div class="field"><label>End</label><input type="time" id="sf-end" onchange="checkShift()"></div></div>
+          <div id="sf-warn"></div>
+          <div class="chips"><button onclick="$('#shift-form').style.display='none'">Cancel</button><button id="sf-del" onclick="deleteShift()">Delete</button><button class="on" onclick="saveShift()">Save shift</button></div>
+        </div>
+        <div class="legend"><span><i style="background:#dcfce7"></i>Prefers</span><span><i style="background:#fff;border:1px solid var(--line)"></i>Available</span><span><i style="background:#e7e5e4"></i>Can't work</span><span><i style="background:#fff;outline:2px solid #dc2626"></i>Conflict</span></div>
+        <div class="sgrid-wrap"><table class="sgrid" id="sgrid"></table></div>
+        <p style="margin:6px 16px;font-size:12px;color:var(--muted)">Tap any cell to add or edit a shift.</p>
+        <div id="sched-summary"></div>
+        <div class="chips"><button onclick="toast('Copied last week\'s shifts')">Copy last week</button><button class="on" onclick="publishSchedule()">Publish &amp; notify team</button></div>
+        <div class="mrow" style="cursor:pointer" onclick="go('admintime')"><span>⏱</span><div class="grow">Timesheets<small>Clock-ins, breaks, overtime, payroll export</small></div>›</div>
+      </div>
+    </section>
+
+    <!-- ADMIN: TIMESHEETS -->
+    <section class="screen" id="s-admintime">
+      <div class="admin-top"><b>Timesheets</b><button onclick="toast('Exported CSV for payroll')">Export CSV</button></div>
+      <div class="scroll">
+        <div class="sec">On the clock now</div>
+        <div id="ts-now"></div>
+        <div class="sec">Last week · Oct 19 – 25</div>
+        <div id="ts-rows"></div>
+        <div class="chips"><button class="on" onclick="toast('Week approved — ready for payroll')">Approve week</button><button onclick="toast('Hours sent to Gusto · direct deposit runs Friday')">Send to Gusto</button></div>
+        <p style="margin:8px 16px;font-size:12px;color:var(--muted)">Overtime and break flags follow California rules as a guide. Confirm with your payroll provider.</p>
+      </div>
+    </section>
+
+    <!-- STAFF BOTTOM BAR -->
+    <nav class="tabbar hide" id="staffbar">
+      <span class="nav-brand">THE HOOD · STAFF</span>
+      <button data-t="staffsched"><span class="ic">📅</span>Schedule</button>
+      <button data-t="staffclock" class="order"><span class="ic">🕒</span>Clock</button>
+      <button data-t="staffavail"><span class="ic">✋</span>Availability</button>
+    </nav>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- KITCHEN TABLET BAR (shared kitchen login) -->
+    <nav class="tabbar hide" id="kitchenbar">
+      <span class="nav-brand">THE HOOD · KITCHEN</span>
+      <button data-t="kitchen"><span class="ic">🍳</span>Orders</button>
+      <button data-t="k86"><span class="ic">🚫</span>86 board</button>
+    </nav>
+
+    <!-- ADMIN BOTTOM BAR -->
+    <nav class="tabbar hide" id="adminbar">
+      <span class="nav-brand" onclick="go('admin')">THE HOOD · ADMIN</span>
+      <button data-t="admin"><span class="ic">📊</span>Home</button>
+      <button data-t="kitchen"><span class="ic">🍳</span>Kitchen</button>
+      <button data-t="adminsched"><span class="ic">🗓</span>Schedule</button>
+      <button data-t="adminevents"><span class="ic">🎤</span>Events</button>
+      <button data-t="adminmore"><span class="ic">☰<i id="admin-badge"></i></span>More</button>
+    </nav>
+
+    <!-- BOTTOM TAB BAR (customer screens) -->
+    <nav class="tabbar" id="tabbar">
+      <span class="nav-brand" onclick="go('home')">THE HOOD</span>
+      <button data-t="home"><span class="ic">🏠</span>Home</button>
+      <button data-t="menu"><span class="ic">🍕</span>Menu</button>
+      <button data-t="cart" class="order"><span class="ic">🛒<i id="tab-badge">0</i></span>Order</button>
+      <button data-t="events"><span class="ic">🎤</span>Events</button>
+      <button data-t="account"><span class="ic">👤</span>Account</button>
+    </nav>
+
+    <!-- ITEM SHEET -->
+    <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet">
+      <div class="hero"><span id="sh-emoji">🍕</span><button class="x" onclick="closeSheet()">✕</button></div>
+      <div class="scroll" id="sh-body"></div>
+      <div class="bar"><button class="btn" id="sh-add" onclick="addToCart()"><span>Add to order</span><span id="sh-price">$0.00</span></button></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <h3>Mock UI</h3>
+    Clickable prototype of the customer app (phone) and admin (kitchen view widens to tablet).<br><br>
+    Styled for <b>The Hood Bar &amp; Pizza</b> with their Yelp menu. Colors and whole-pie prices are placeholders.<br><br>
+    <b>Home</b> shows specials and upcoming events; every “Order now” goes to the menu, and tapping a special opens it ready to customize. Events are a sample schedule.<br><br>
+    Tap <b>OG Combo</b> to try the modifier sheet: required Size, removable toppings (“hold the sausage”), add-ons with Light/Extra, and Left/Right halves on a whole pie. Prices are computed by one function — the same rule the real app's <code>pricing.ts</code> follows.<br><br>
+    Try the <b>86 board</b>: toggling an item off greys it out on the menu.<br><br>
+    <b>Admin → Events</b>: add an event and it shows up on Home and Events. <b>Admin → More → Pages &amp; forms</b>: edit form fields, then submit the public page (Book a band / Private events / Jobs) to see it land in Submissions.<br><br>
+    <b>Staff</b> (you're Alex, a bartender): set availability, clock in/out. <b>Admin → Schedule</b>: tap a cell to add a shift — availability, time off and overtime warnings show live; green cells = prefers that day.
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const money = c => "$" + (c / 100).toFixed(2);
+
+// ---- mock menu: The Hood (docs/clients/the-hood.md). Whole-pie and topping prices are placeholders ----
+const groups = {
+  size: { name: "Size", kind: "choice", min: 1, max: 1, mods: [
+    { id: "slice", name: "Jumbo slice (2 big slices)", price: 0 }, { id: "whole", name: 'Whole pie (price TBD)', price: 1900 } ] },
+  ogComes: { name: "Comes with", kind: "removal", min: 0, max: 9, mods: [
+    { id: "pep", name: "Pepperoni", price: 0, def: true }, { id: "saus", name: "Sausage", price: 0, def: true },
+    { id: "mush", name: "Mushrooms", price: 0, def: true }, { id: "olive", name: "Olives", price: 0, def: true },
+    { id: "onion", name: "Onions", price: 0, def: true }, { id: "gpep", name: "Green peppers", price: 0, def: true },
+    { id: "moz", name: "Mozzarella", price: 0, def: true, extra: 150 } ] },
+  shComes: { name: "Comes with", kind: "removal", min: 0, max: 9, mods: [
+    { id: "pep2", name: "Pepperoni", price: 0, def: true }, { id: "saus2", name: "Sausage", price: 0, def: true },
+    { id: "ham", name: "Ham", price: 0, def: true }, { id: "bacon2", name: "Bacon", price: 0, def: true } ] },
+  popComes: { name: "Comes with", kind: "removal", min: 0, max: 9, mods: [
+    { id: "jal2", name: "Jalapeño", price: 0, def: true }, { id: "bacon3", name: "Bacon", price: 0, def: true }, { id: "ched", name: "Cheddar", price: 0, def: true, extra: 150 } ] },
+  tops: { name: "Add toppings", kind: "addon", min: 0, max: 5, mods: [
+    { id: "jal", name: "Jalapeños", price: 150 }, { id: "pine", name: "Pineapple", price: 150 }, { id: "spin", name: "Spinach", price: 150 },
+    { id: "bacon", name: "Bacon", price: 250 }, { id: "chix", name: "Chicken", price: 250 } ] },
+  wingSauce: { name: "Sauce", kind: "choice", min: 1, max: 1, mods: [
+    { id: "redhot", name: "Red Hot Buffalo", price: 0 }, { id: "daytona", name: "Daytona (mild)", price: 0 }, { id: "bbq", name: "BBQ", price: 0 } ] },
+  tots: { name: "Comes with", kind: "removal", min: 0, max: 3, mods: [{ id: "tbacon", name: "Bacon", price: 0, def: true }, { id: "tranch", name: "Ranch", price: 0, def: true }] },
+};
+const items = [
+  { id: "og", name: "OG Combo", emoji: "🍕", desc: "Pep, sausage, mushrooms, olives, onions, green peppers", price: 900, groups: ["size", "ogComes", "tops"], tags: ["popular"] },
+  { id: "slaughter", name: "Slaughter House", emoji: "🥓", desc: "Pepperoni, sausage, ham, bacon", price: 900, groups: ["size", "shComes", "tops"], tags: [] },
+  { id: "popper", name: "Jalapeño Popper Pizza", emoji: "🌶️", desc: "House popper sauce, jalapeño, bacon, cheddar", price: 900, groups: ["size", "popComes", "tops"], tags: [] },
+  { id: "wings", name: "Chicken Wings (10)", emoji: "🍗", desc: 'Homemade "Red hot" buffalo, Daytona (mild), or BBQ', price: 1595, groups: ["wingSauce"], tags: [] },
+  { id: "killer", name: "Killer Tots", emoji: "🧀", desc: "Tots, mozzarella, cheddar, bacon, ranch for dipping", price: 1095, groups: ["tots"], tags: [] },
+];
+const sold = new Set();
+
+// home page content — in the real app: owner-curated `featured` flags + `events` table
+const specials = [
+  { item: "popper", badge: "NEW", blurb: "House popper sauce on a scratch crust" },
+  { item: "og", badge: "STAFF PICK", blurb: "The one that started it all" },
+  { item: "wings", badge: "HAPPY HOUR", blurb: "Try them Daytona-style (mild)" },
+  { item: "killer", badge: "FAN FAVE", blurb: "Bar food, perfected" },
+];
+const events = [  // sample schedule — confirm with owner. Real app: `events` table
+  { date: "2026-10-27", time: "8 PM", title: "👑 Drag Queen Bingo", note: "Prizes, laughs, and a full house", repeat: "weekly", home: true },
+  { date: "2026-10-29", time: "9 PM", title: "🎤 Karaoke Night", note: "Sign-up at the bar", repeat: "weekly", home: true },
+  { date: "2026-10-31", time: "9 PM", title: "🎸 Live Music: Halloween Bash", note: "Costume contest at midnight", home: true },
+  { date: "2026-11-01", time: "4 PM", title: "👑 Sunday Bingo", note: "Hosted by our resident diva", repeat: "weekly", home: false },
+  { date: "2026-11-14", time: "8 PM", title: "🎸 Local Band Showcase", note: "Now booking acts", link: "band", home: true },
+];
+const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const evDay = e => { const d = new Date(e.date + "T12:00"); return { dow: DOW[d.getDay()], day: d.getDate() }; };
+const fmtTime = t => { if (!t) return "TBD"; let [h, m] = t.split(":").map(Number); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return h + (m ? ":" + String(m).padStart(2, "0") : "") + " " + ap; };
+const repeatLabel = e => e.repeat === "weekly" ? "Every " + evDay(e).dow[0] + evDay(e).dow.slice(1).toLowerCase() : e.repeat === "monthly" ? "Monthly" : "";
+
+// content pages — real app: `pages` table, form fields in `pages.form_schema`, entries in `form_submissions`
+const pages = {
+  band: { title: "Play at The Hood", sub: "Live music bookings", slug: "/play", kind: "form", status: "Published", footer: "host", notify: "booking@ (TBD)", button: "Send booking request",
+    intro: `<p>We host live bands every Friday and Saturday night, plus showcases for local acts. Rock, country, Latin, covers, tributes — if it gets people moving, we want to hear it.</p><p>Tell us about your act and we'll get back to you within a week.</p>`,
+    fields: [
+      { label: "Band / artist name", type: "text", req: true }, { label: "Contact name", type: "text", req: true },
+      { label: "Email", type: "email", req: true }, { label: "Phone", type: "tel" },
+      { label: "Genre", type: "select", options: ["Rock", "Country", "Latin", "Hip-hop", "Tribute / covers", "Acoustic", "Other"], req: true },
+      { label: "Links (Spotify, YouTube, Instagram)", type: "text" }, { label: "Preferred dates", type: "text" },
+      { label: "Tell us about your act", type: "textarea" } ] },
+  private: { title: "Private Events & Rentals", sub: "Birthdays, parties, corporate, watch parties", slug: "/private-events", kind: "form", status: "Published", footer: "host", notify: "events@ (TBD)", button: "Request a quote",
+    intro: `<p>Rent the patio, the pool room, or the whole bar. We handle pizza, drinks and the music — you bring the people.</p>
+      <div class="pk"><div><b>🌴 Patio</b>Up to 40 guests</div><div><b>🎱 Pool room</b>Up to 25 guests</div><div><b>🍻 Full buyout</b>Up to 150 guests</div></div>`,
+    fields: [
+      { label: "Your name", type: "text", req: true }, { label: "Email", type: "email", req: true }, { label: "Phone", type: "tel", req: true },
+      { label: "Event type", type: "select", options: ["Birthday", "Corporate", "Fundraiser", "Bachelor / bachelorette", "Watch party", "Other"], req: true },
+      { label: "Event date", type: "date", req: true }, { label: "Guest count", type: "number", req: true },
+      { label: "Space", type: "select", options: ["Patio", "Pool room", "Full buyout", "Not sure yet"] },
+      { label: "Food & drinks", type: "select", options: ["Pizza buffet", "Appetizer platters", "Drink tickets", "Open bar", "Not sure yet"] },
+      { label: "Anything else?", type: "textarea" } ] },
+  jobs: { title: "Work at The Hood", sub: "Now hiring", slug: "/jobs", kind: "form", status: "Published", footer: "explore", notify: "jobs@ (TBD)", button: "Submit application",
+    intro: `<p>Fun crew, late nights, live music. We're looking for people who like people.</p>
+      <div class="pk"><div><b>🍺 Bartender</b>Nights &amp; weekends · 21+</div><div><b>🍕 Pizza cook</b>Full or part time</div><div><b>🎤 Door / security</b>Fri &amp; Sat</div></div>`,
+    fields: [
+      { label: "Full name", type: "text", req: true }, { label: "Email", type: "email", req: true }, { label: "Phone", type: "tel", req: true },
+      { label: "Position", type: "select", options: ["Bartender", "Pizza cook", "Server", "Door / security", "Any"], req: true },
+      { label: "Availability", type: "select", options: ["Nights", "Weekends", "Nights & weekends", "Open availability"] },
+      { label: "Are you 21 or older?", type: "select", options: ["Yes", "No"], req: true },
+      { label: "Resume (PDF, optional)", type: "file" }, { label: "Why The Hood?", type: "textarea" } ] },
+  catering: { title: "Catering", sub: "Pizza for your office, party or team", slug: "/catering", kind: "form", status: "Published", footer: "host", notify: "events@ (TBD)", button: "Request a quote",
+    intro: `<p>Feed the crew. Whole pies, wings and tots, ready for pickup or dropped off around the Coachella Valley.</p>
+      <div class="pk"><div><b>🍕 Pizza party</b>10–25 people</div><div><b>🏈 Game day</b>Pies, wings &amp; tots</div><div><b>🏢 Office lunch</b>Weekday pickup</div></div>`,
+    fields: [
+      { label: "Your name", type: "text", req: true }, { label: "Company (optional)", type: "text" },
+      { label: "Email", type: "email", req: true }, { label: "Phone", type: "tel", req: true },
+      { label: "Date needed", type: "date", req: true }, { label: "Headcount", type: "number", req: true },
+      { label: "Pickup or drop-off", type: "select", options: ["Pickup", "Drop-off", "Not sure yet"] },
+      { label: "What are you thinking?", type: "textarea" } ] },
+  privacy: { title: "Privacy Policy", slug: "/privacy", kind: "legal", status: "Published" },
+  terms: { title: "Terms of Service", slug: "/terms", kind: "legal", status: "Published" },
+};
+const submissions = [
+  { page: "band", name: "The Desert Sons", when: "Oct 25", status: "New", detail: "Rock · wants a Saturday in November" },
+  { page: "private", name: "Alicia R.", when: "Oct 24", status: "Contacted", detail: "Birthday · Nov 15 · 40 guests · Patio" },
+  { page: "jobs", name: "Marco D.", when: "Oct 23", status: "New", detail: "Bartender · Nights & weekends · 21+" },
+  { page: "catering", name: "Desert Tech Co.", when: "Oct 26", status: "New", detail: "Office lunch · Nov 6 · 30 people · Drop-off" },
+];
+let curPage = "band", edId = null;
+
+// ---- pricing: one function, like src/domain/pricing.ts ----
+function priceLine(item, sel) {
+  let c = item.price;
+  for (const gid of item.groups) for (const m of groups[gid].mods) {
+    const s = sel[m.id]; if (!s || s.action === "remove") continue;
+    if (groups[gid].kind === "removal") { if (s.qty === "extra") c += m.extra || 0; continue; }
+    const half = s.place && s.place !== "whole" ? 0.5 : 1;
+    const mult = s.qty === "extra" ? 2 : 1;
+    c += Math.round(m.price * mult * half);
+  }
+  return c;
+}
+function validate(item, sel) {
+  return item.groups.every(gid => { const g = groups[gid];
+    const n = g.mods.filter(m => sel[m.id] && sel[m.id].action !== "remove").length;
+    return g.kind === "removal" || (n >= g.min && n <= g.max); });
+}
+function describe(item, sel) {
+  const out = [];
+  for (const gid of item.groups) for (const m of groups[gid].mods) { const s = sel[m.id]; if (!s) continue;
+    const g = groups[gid];
+    if (s.action === "remove") out.push("NO " + m.name);
+    else if (g.kind === "removal") { if (s.qty === "extra") out.push("EXTRA " + m.name); }
+    else if (g.kind === "addon") out.push((s.qty === "extra" ? "EXTRA " : s.qty === "light" ? "LIGHT " : "ADD ") + m.name + (s.place && s.place !== "whole" ? " (" + s.place + " half)" : ""));
+    else out.push(m.name);
+  }
+  return out;
+}
+
+// ---- state ----
+let cart = [], cur = null, curSel = {}, tipPct = 0.15;
+const TAX = 0.0875;
+
+function renderMenu() {
+  $("#menu-list").innerHTML = items.map(i => `
+    <div class="item ${sold.has(i.id) ? "sold" : ""}" onclick="${sold.has(i.id) ? "" : `openItem('${i.id}')`}">
+      <div class="img">${i.emoji}</div>
+      <div><h3>${i.name}${i.tags.includes("popular") ? '<span class="tag">Popular</span>' : ""}${sold.has(i.id) ? '<span class="tag">Sold out</span>' : ""}</h3>
+      <p>${i.desc}</p><span class="price">from ${money(i.price)}</span></div>
+    </div>`).join("");
+  const t = cart.reduce((a, l) => a + l.total, 0);
+  $("#cart-count").textContent = cart.length; $("#cart-total").textContent = money(t);
+}
+
+function openItem(id) {
+  cur = items.find(i => i.id === id); curSel = {};
+  for (const gid of cur.groups) for (const m of groups[gid].mods) if (m.def) curSel[m.id] = { action: "keep", qty: "normal" };
+  $("#sh-emoji").textContent = cur.emoji;
+  renderSheet(); $("#sheet").classList.add("on"); $("#sheet-bg").style.display = "block";
+}
+function closeSheet() { $("#sheet").classList.remove("on"); $("#sheet-bg").style.display = "none"; }
+
+function renderSheet() {
+  let h = `<div class="grp"><h4>${cur.name}</h4><small>${cur.desc}</small></div>`;
+  for (const gid of cur.groups) {
+    const g = groups[gid];
+    const n = g.mods.filter(m => curSel[m.id] && curSel[m.id].action !== "remove").length;
+    const rule = g.kind === "removal" ? "Uncheck to remove" : g.min ? "Choose 1" : `Up to ${g.max}`;
+    const badge = g.min ? `<span class="req ${n >= g.min ? "done" : ""}">${n >= g.min ? "✓" : "Required"}</span>` : "";
+    h += `<div class="grp"><h4>${g.name}${badge}</h4><small>${rule}</small>`;
+    for (const m of g.mods) {
+      const s = curSel[m.id]; const on = s && s.action !== "remove";
+      const type = g.max === 1 ? "radio" : "checkbox";
+      const priceTxt = g.kind === "removal" ? (m.extra ? "" : "") : m.price ? "+" + money(m.price) : "";
+      let mini = "";
+      if (on && g.kind === "addon" && gid === "tops" && curSel.whole) {
+        mini = `<div class="mini">${["light", "normal", "extra"].map(q => `<button class="${(s.qty || "normal") === q ? "on" : ""}" onclick="setQ('${m.id}','qty','${q}')">${q === "normal" ? "Reg" : q[0].toUpperCase() + q.slice(1)}</button>`).join("")}
+                 ${["left", "whole", "right"].map(p => `<button class="${(s.place || "whole") === p ? "on" : ""}" onclick="setQ('${m.id}','place','${p}')">${p === "whole" ? "◉" : p === "left" ? "◐" : "◑"}</button>`).join("")}</div>`;
+      } else if (on && g.kind === "removal" && m.extra) {
+        mini = `<div class="mini"><button class="${s.qty === "extra" ? "on" : ""}" onclick="setQ('${m.id}','qty','${s.qty === "extra" ? "normal" : "extra"}')">Extra +${money(m.extra)}</button></div>`;
+      }
+      h += `<div class="opt"><label><input type="${type}" name="${gid}" ${on ? "checked" : ""} onchange="toggle('${gid}','${m.id}')">
+            <span class="${g.kind === "removal" && !on ? "removed" : ""}">${m.name}</span></label>${mini}<span style="color:var(--muted);font-size:13px">${priceTxt}</span></div>`;
+    }
+    h += `</div>`;
+  }
+  $("#sh-body").innerHTML = h;
+  $("#sh-price").textContent = money(priceLine(cur, curSel));
+  $("#sh-add").disabled = !validate(cur, curSel);
+}
+function toggle(gid, mid) {
+  const g = groups[gid];
+  if (g.kind === "removal") { const s = curSel[mid]; curSel[mid] = { action: s.action === "remove" ? "keep" : "remove", qty: "normal" }; }
+  else if (g.max === 1) { g.mods.forEach(m => delete curSel[m.id]); curSel[mid] = { action: "choose" }; }
+  else if (curSel[mid]) delete curSel[mid];
+  else { const n = g.mods.filter(m => curSel[m.id]).length; if (n < g.max) curSel[mid] = { action: "add", qty: "normal", place: "whole" }; }
+  renderSheet();
+}
+function setQ(mid, k, v) { curSel[mid][k] = v; renderSheet(); }
+function addToCart() {
+  cart.push({ item: cur, sel: JSON.parse(JSON.stringify(curSel)), total: priceLine(cur, curSel) });
+  closeSheet(); renderAll();
+}
+
+function totals() {
+  const sub = cart.reduce((a, l) => a + l.total, 0), tax = Math.round(sub * TAX), tip = Math.round(sub * tipPct);
+  return { sub, tax, tip, total: sub + tax + tip };
+}
+function totalsHtml(t, withTip = true) {
+  return `<div><span>Subtotal</span><span>${money(t.sub)}</span></div><div><span>Tax</span><span>${money(t.tax)}</span></div>` +
+    (withTip ? `<div><span>Tip</span><span>${money(t.tip)}</span></div>` : "") +
+    `<div class="big"><span>Total</span><span>${money(withTip ? t.total : t.sub + t.tax)}</span></div>`;
+}
+function linesHtml() {
+  if (!cart.length) return `<div class="line">Your order is empty. Tap an item on the menu.</div>`;
+  return cart.map((l, i) => `<div class="line"><div style="display:flex;justify-content:space-between"><b>1× ${l.item.name}</b><span>${money(l.total)}</span></div>
+    <div class="mods">${describe(l.item, l.sel).join(" · ")}</div></div>`).join("");
+}
+function renderHome() {
+  $("#specials").innerHTML = specials.map(s => { const i = items.find(x => x.id === s.item);
+    return `<div class="sp" onclick="go('menu');${sold.has(i.id) ? "" : `openItem('${i.id}')`}">
+      <div class="ph">${i.emoji}<span class="badge">${sold.has(i.id) ? "SOLD OUT" : s.badge}</span></div>
+      <div class="bd"><h3>${i.name}</h3><p>${s.blurb}</p><div class="add"><span>from ${money(i.price)}</span><span>+</span></div></div></div>`; }).join("");
+  const evHtml = e => { const d = evDay(e); const rep = repeatLabel(e);
+    return `<div class="ev ${e.link ? "link" : ""}" ${e.link ? `onclick="openPage('${e.link}')"` : ""}><div class="date"><small>${d.dow}</small><b>${d.day}</b></div>
+    <div><h3>${e.title}</h3><p>${e.time}${rep ? " · " + rep : ""} · ${e.note}</p></div>${e.link ? `<span class="go">${pages[e.link].button.split(" ")[0]} →</span>` : ""}</div>`; };
+  events.sort((a, b) => a.date.localeCompare(b.date));
+  $("#events").innerHTML = events.filter(e => e.home).slice(0, 3).map(evHtml).join("");
+  $("#events-full").innerHTML = events.map(evHtml).join("");
+  $("#tab-badge").textContent = cart.length;
+  $("#tab-badge").style.display = cart.length ? "grid" : "none";
+}
+// ---- footer (one component, every customer page) ----
+function footerHtml() {
+  const links = where => Object.entries(pages).filter(([, p]) => p.footer === where && p.status === "Published")
+    .map(([id, p]) => `<a onclick="openPage('${id}')">${p.title}</a>`).join("");
+  return `<div class="fb">THE HOOD</div><div style="opacity:.8;margin-top:4px">Bar &amp; Pizza · Palm Desert</div>
+    <div class="fcols">
+      <div><h4>Visit</h4>74360 Hwy 111<br>Palm Desert, CA 92260<br>Open daily 2 PM – 2 AM<br>Phone TBD</div>
+      <div><h4>Explore</h4><a onclick="go('menu')">Menu &amp; order</a><a onclick="go('events')">Events</a>${links("explore")}</div>
+      <div><h4>Host with us</h4>${links("host")}</div>
+      <div><h4>Follow</h4><a>Instagram</a><a>Facebook</a><a>Yelp</a></div>
+    </div>
+    <div class="legal"><span>© 2026 The Hood Bar &amp; Pizza</span><a onclick="go('privacy')">Privacy Policy</a><a onclick="go('terms')">Terms of Service</a><a>Accessibility</a><a onclick="go('login')">Staff login</a></div>`;
+}
+
+// ---- content pages + forms ----
+function fieldHtml(f) {
+  const lab = `<label>${f.label}${f.req ? " *" : ""}</label>`;
+  if (f.type === "select") return `<div class="field">${lab}<select><option value="">Choose…</option>${(f.options || []).map(o => `<option>${o}</option>`).join("")}</select></div>`;
+  if (f.type === "textarea") return `<div class="field">${lab}<textarea rows="3"></textarea></div>`;
+  return `<div class="field">${lab}<input type="${f.type}" ${f.type === "file" ? 'accept=".pdf,.doc,.docx"' : ""}></div>`;
+}
+function openPage(id) {
+  curPage = id; const p = pages[id];
+  $("#pg-title").textContent = p.title; $("#pg-sub").textContent = p.sub || "";
+  $("#pg-intro").innerHTML = p.intro || "";
+  // honeypot field catches bots; the real app also rate-limits and can add a bot check
+  $("#pg-form").innerHTML = (p.fields || []).map(fieldHtml).join("") + `<input class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">`;
+  $("#pg-submit-label").textContent = p.button || "Send"; $("#pg-submit").disabled = false;
+  go("page");
+}
+function submitPage() {
+  const p = pages[curPage];
+  const vals = [...document.querySelectorAll("#pg-form .field")].map(f => f.querySelector("input,select,textarea").value);
+  submissions.unshift({ page: curPage, name: vals[0] || "New inquiry", when: "Just now", status: "New", detail: vals.slice(1, 5).filter(Boolean).join(" · ") || "—" });
+  $("#pg-form").innerHTML = `<div class="thanks"><div style="font-size:36px">🤘</div><b>Thanks — we got it!</b><p style="color:var(--muted);font-size:13px">A copy is on its way to your inbox. We'll be in touch soon.</p></div>`;
+  $("#pg-submit").disabled = true; $("#pg-submit-label").textContent = "Sent ✓";
+  renderAll();
+}
+
+// ---- admin: events ----
+function toggleEvForm(show) {
+  $("#ev-form").style.display = show ? "block" : "none";
+  $("#ev-link").innerHTML = `<option value="">No button</option>` + Object.entries(pages).filter(([, p]) => p.kind === "form")
+    .map(([id, p]) => `<option value="${id}">Form: ${p.title}</option>`).join("");
+}
+function saveEvent() {
+  const title = $("#ev-title").value.trim(); if (!title || !$("#ev-date").value) { $("#ev-title").focus(); return; }
+  events.push({ date: $("#ev-date").value, time: fmtTime($("#ev-time").value), title, note: $("#ev-desc").value || $("#ev-cat").value,
+    repeat: $("#ev-repeat").value || undefined, link: $("#ev-link").value || undefined, home: $("#ev-home").checked });
+  $("#ev-title").value = ""; $("#ev-desc").value = ""; toggleEvForm(false); renderAll();
+}
+function delEvent(i) { events.splice(i, 1); renderAll(); }
+function flipEvHome(i) { events[i].home = !events[i].home; renderAll(); }
+function renderAdminEvents() {
+  $("#admin-ev-list").innerHTML = events.map((e, i) => { const d = evDay(e);
+    return `<div class="mrow"><div class="date" style="flex:none;width:44px;text-align:center;background:var(--header);color:#fff;border-radius:8px;padding:4px 0;font-size:10px">${d.dow}<b style="display:block;font-size:16px;color:var(--primary)">${d.day}</b></div>
+      <div class="grow"><b>${e.title}</b><small>${e.time} · ${repeatLabel(e) || "One-time"}${e.link ? " · → " + pages[e.link].title : ""}</small></div>
+      <span title="Show on home" class="switch ${e.home ? "" : "off"}" onclick="flipEvHome(${i})"></span>
+      <button class="ibtn" onclick="delEvent(${i})" title="Delete">🗑</button></div>`; }).join("") +
+    `<p style="margin:8px 16px;font-size:12px;color:var(--muted)">Switch = show on home page. Weekly events repeat automatically.</p>`;
+}
+
+// ---- admin: pages & forms ----
+function pgTab(t) {
+  document.querySelectorAll("#pg-tabs span").forEach(s => s.classList.toggle("on", s.dataset.pt === t));
+  $("#pg-pages").style.display = t === "pages" ? "block" : "none";
+  $("#pg-subs").style.display = t === "subs" ? "block" : "none";
+  $("#pg-editor").style.display = t === "editor" ? "block" : "none";
+}
+document.querySelectorAll("#pg-tabs span").forEach(s => s.onclick = () => pgTab(s.dataset.pt));
+function renderAdminPages() {
+  $("#pg-pages").innerHTML = Object.entries(pages).map(([id, p]) => `<div class="mrow" style="cursor:pointer" onclick="openEditor('${id}')">
+      <span>${p.kind === "legal" ? "⚖️" : "📝"}</span><div class="grow"><b>${p.title}</b><small>${p.slug} · ${p.kind === "legal" ? "Legal" : (p.fields || []).length + " form fields"}</small></div>
+      <span class="kind">${p.status}</span>›</div>`).join("") +
+    `<p style="margin:8px 16px;font-size:12px;color:var(--muted)">Start a new page from a template: <b>Form</b> (bookings, applications, inquiries), <b>Event landing</b>, or <b>Blank</b>.</p>`;
+  const nNew = submissions.filter(s => s.status === "New").length;
+  $("#sub-cnt").textContent = nNew; $("#more-cnt").textContent = nNew;
+  $("#admin-badge").textContent = nNew; $("#admin-badge").style.display = nNew ? "grid" : "none";
+  $("#pg-subs").innerHTML = submissions.map((s, i) => `<div class="line"><div style="display:flex;justify-content:space-between;gap:8px">
+      <b>${s.name}</b><span class="kind ${s.status === "New" ? "new" : ""}">${s.status}</span></div>
+      <div class="mods">${pages[s.page].title} · ${s.when}</div><div style="margin-top:6px;font-size:13px">${s.detail}</div>
+      <div class="chips" style="margin:10px 0 0">${["New", "Contacted", "Booked", "Declined"].map(st => `<button class="${s.status === st ? "on" : ""}" onclick="setSub(${i},'${st}')">${st}</button>`).join("")}</div></div>`).join("");
+  if (edId) renderEditor();
+}
+function setSub(i, st) { submissions[i].status = st; renderAll(); }
+function openEditor(id) { edId = id; renderEditor(); pgTab("editor"); }
+function renderEditor() {
+  const p = pages[edId];
+  let h = `<div class="mrow" style="cursor:pointer" onclick="edId=null;pgTab('pages')">‹ All pages</div>
+    <div class="admin-form">
+      <div class="field"><label>Page title</label><input value="${p.title}" oninput="pages['${edId}'].title=this.value;document.querySelectorAll('[data-foot]').forEach(f=>f.innerHTML=footerHtml())"></div>
+      <div class="two"><div class="field"><label>Web address</label><input value="${p.slug}"></div>
+        <div class="field"><label>Status</label><select onchange="pages['${edId}'].status=this.value;renderAll()">${["Published", "Draft"].map(s => `<option ${p.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div></div>`;
+  if (p.kind === "legal") {
+    h += `<p style="margin:8px 12px;font-size:13px;color:var(--muted)">Generated from the template using your business name, address and services. Edit any section, then have a lawyer review it before launch.</p>`;
+  } else {
+    h += `<div class="two"><div class="field"><label>Email new submissions to</label><input value="${p.notify || ""}"></div>
+        <div class="field"><label>Footer link</label><select onchange="pages['${edId}'].footer=this.value;renderAll()">${[["", "Hidden"], ["explore", "Explore column"], ["host", "Host with us column"]].map(([v, l]) => `<option value="${v}" ${(p.footer || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div></div>
+      <div class="sec" style="padding:8px 12px 0">Form fields</div>` +
+      p.fields.map((f, i) => `<div class="mrow" style="margin:6px 12px;background:var(--bg)"><div class="grow">${f.label}<small>${f.type}${f.req ? " · required" : ""}</small></div>
+        <button class="ibtn" onclick="moveField(${i},-1)">↑</button><button class="ibtn" onclick="pages[edId].fields.splice(${i},1);renderAll()">✕</button></div>`).join("") +
+      `<div class="two"><div class="field"><label>New field</label><input id="nf-label" placeholder="e.g. Instagram handle"></div>
+        <div class="field"><label>Type</label><select id="nf-type"><option value="text">Short text</option><option value="textarea">Long text</option><option value="email">Email</option><option value="tel">Phone</option><option value="date">Date</option><option value="number">Number</option><option value="select">Dropdown</option><option value="file">File upload</option></select></div></div>
+      <label class="chk"><input type="checkbox" id="nf-req"> Required</label>
+      <div class="chips"><button onclick="addField()">+ Add field</button></div>`;
+  }
+  h += `<div class="chips"><button onclick="${p.kind === "legal" ? `go('${edId}')` : `openPage('${edId}')`}">View page</button><button class="on">Save</button></div></div>`;
+  $("#pg-editor").innerHTML = h;
+}
+function addField() {
+  const label = $("#nf-label").value.trim(); if (!label) return;
+  const type = $("#nf-type").value;
+  pages[edId].fields.push({ label, type, req: $("#nf-req").checked, options: type === "select" ? ["Option 1", "Option 2"] : undefined });
+  renderAll();
+}
+function moveField(i, d) { const f = pages[edId].fields; if (i + d < 0) return; [f[i], f[i + d]] = [f[i + d], f[i]]; renderAll(); }
+function newPage() {
+  const id = "page" + Date.now();
+  pages[id] = { title: "New page", sub: "", slug: "/new-page", kind: "form", status: "Draft", footer: "", button: "Send", intro: "<p>Write something here.</p>",
+    fields: [{ label: "Name", type: "text", req: true }, { label: "Email", type: "email", req: true }, { label: "Message", type: "textarea" }] };
+  go("adminpages"); openEditor(id); renderAll();
+}
+
+// ---- staff scheduling + time clock (real app: employees, availability, shifts, time_entries) ----
+const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEK_DATES = [26, 27, 28, 29, 30, 31, 1];          // Oct 26 – Nov 1, 2026
+const dayIso = d => new Date(2026, 9, 26 + d, 12).toISOString().slice(0, 10);
+const TODAY = 0;
+const POS = { Bartender: "#d97706", Cook: "#dc2626", Server: "#2563eb", Door: "#7c3aed" };
+const staff = [  // sample team — avail per weekday: prefer / ok / no
+  { id: "alex", name: "Alex M.", pos: "Bartender", rate: 1800, max: 32, window: "Night", note: "", avail: ["prefer", "prefer", "ok", "no", "prefer", "prefer", "ok"] },
+  { id: "jordan", name: "Jordan P.", pos: "Cook", rate: 2000, max: 40, window: "Either", note: "", avail: ["ok", "ok", "ok", "ok", "prefer", "prefer", "no"] },
+  { id: "sam", name: "Sam R.", pos: "Server", rate: 1700, max: 25, window: "Day", note: "", avail: ["no", "ok", "prefer", "prefer", "ok", "ok", "prefer"] },
+  { id: "taylor", name: "Taylor K.", pos: "Bartender", rate: 1800, max: 30, window: "Night", note: "", avail: ["ok", "no", "ok", "ok", "prefer", "prefer", "prefer"] },
+  { id: "riley", name: "Riley D.", pos: "Door", rate: 1900, max: 16, window: "Night", note: "", avail: ["no", "no", "no", "ok", "prefer", "prefer", "no"] },
+];
+const ME = "alex";
+const shifts = [
+  { emp: "alex", day: 0, start: "18:00", end: "02:00", pos: "Bartender" }, { emp: "alex", day: 1, start: "18:00", end: "02:00", pos: "Bartender" },
+  { emp: "alex", day: 4, start: "20:00", end: "02:00", pos: "Bartender" }, { emp: "alex", day: 5, start: "20:00", end: "02:00", pos: "Bartender" },
+  { emp: "jordan", day: 0, start: "14:00", end: "22:00", pos: "Cook" }, { emp: "jordan", day: 1, start: "14:00", end: "22:00", pos: "Cook" },
+  { emp: "jordan", day: 2, start: "14:00", end: "22:00", pos: "Cook" }, { emp: "jordan", day: 4, start: "16:00", end: "00:00", pos: "Cook" },
+  { emp: "jordan", day: 5, start: "16:00", end: "00:00", pos: "Cook" },
+  { emp: "sam", day: 2, start: "14:00", end: "20:00", pos: "Server" }, { emp: "sam", day: 3, start: "14:00", end: "20:00", pos: "Server" },
+  { emp: "sam", day: 6, start: "14:00", end: "20:00", pos: "Server" },
+  { emp: "taylor", day: 2, start: "18:00", end: "02:00", pos: "Bartender" }, { emp: "taylor", day: 3, start: "18:00", end: "02:00", pos: "Bartender" },
+  { emp: "taylor", day: 6, start: "16:00", end: "00:00", pos: "Bartender" },
+  { emp: "riley", day: 4, start: "21:00", end: "02:00", pos: "Door" }, { emp: "riley", day: 5, start: "21:00", end: "02:00", pos: "Door" },
+];
+const timeOffReqs = [{ emp: "taylor", from: "2026-11-01", to: "2026-11-01", reason: "Family birthday", status: "Pending" }];
+// shift cover: open → claimed → approved / denied (real app: `shift_cover_requests`)
+const coverReqs = [{ shift: shifts.findIndex(s => s.emp === "taylor" && s.day === 6), from: "taylor", by: null, note: "Family birthday", status: "Open" }];
+let schedStatus = "Published", editIdx = -1, stMode = "me", reqFilter = "all", kitchenMode = false;
+const clock = { on: false, since: null, ts: 0, onBreak: false,
+  entries: [{ day: "Sun Oct 25", in: "5:56 PM", out: "2:07 AM", hrs: 8.2 }, { day: "Sat Oct 24", in: "7:58 PM", out: "2:11 AM", hrs: 6.2 }] };
+
+const mins = t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const span = s => { const a = mins(s.start); let b = mins(s.end); if (b <= a) b += 1440; return [a, b]; };   // closes after midnight
+const dur = s => { const [a, b] = span(s); return (b - a) / 60; };
+const short = t => { let [h, m] = t.split(":").map(Number); const ap = h >= 12 ? "p" : "a"; h = h % 12 || 12; return h + (m ? ":" + String(m).padStart(2, "0") : "") + ap; };
+const empOf = id => staff.find(s => s.id === id);
+const weekHours = id => shifts.filter(s => s.emp === id).reduce((a, s) => a + dur(s), 0);
+const AVAIL_WORD = { prefer: "prefers", ok: "available", no: "can't work" };
+const nowStr = () => new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = "none", 2600); }
+
+// the same checks run server-side when a schedule is published
+function shiftWarnings(sh, ignore) {
+  const e = empOf(sh.emp), w = [], first = e.name.split(" ")[0];
+  if (e.avail[sh.day] === "no") w.push(`${first} can't work ${WEEK[sh.day]}s`);
+  const off = timeOffReqs.find(t => t.emp === sh.emp && t.status !== "Denied" && t.from <= dayIso(sh.day) && dayIso(sh.day) <= t.to);
+  if (off) w.push(`${first} has time off ${off.status.toLowerCase()} that day`);
+  const [a, b] = span(sh);
+  if (shifts.some((s, i) => i !== ignore && s.emp === sh.emp && s.day === sh.day && (() => { const [c, d] = span(s); return a < d && c < b; })())) w.push("Overlaps another shift");
+  if (dur(sh) > 8) w.push(`${dur(sh)}h shift — daily overtime after 8h`);
+  const total = shifts.filter((s, i) => i !== ignore && s.emp === sh.emp).reduce((x, s) => x + dur(s), 0) + dur(sh);
+  if (total > 40) w.push(`${total}h this week — weekly overtime after 40h`);
+  else if (total > e.max) w.push(`${total}h this week — over ${first}'s max of ${e.max}h`);
+  return w;
+}
+
+function renderSchedule() {
+  $("#sched-status").textContent = schedStatus;
+  $("#sched-status").className = "kind " + (schedStatus === "Published" ? "" : "new");
+  let h = `<tr><th>Team</th>${WEEK.map((d, i) => `<th>${d}<br><small>${WEEK_DATES[i]}</small></th>`).join("")}<th>Hrs</th></tr>`;
+  for (const e of staff) {
+    h += `<tr><td class="emp"><b>${e.name}</b><br><small style="color:${POS[e.pos]}">${e.pos}</small></td>`;
+    for (let d = 0; d < 7; d++) {
+      const list = shifts.map((s, i) => [s, i]).filter(([s]) => s.emp === e.id && s.day === d);
+      h += `<td class="cell ${e.avail[d]}" title="${e.name} ${AVAIL_WORD[e.avail[d]]} ${WEEK[d]}" onclick="openShiftForm('${e.id}',${d},${list.length ? list[0][1] : -1})">` +
+        list.map(([s, i]) => `<span class="shift ${shiftWarnings(s, i).length ? "warn" : ""}" style="background:${POS[s.pos]}">${short(s.start)}–${short(s.end)}</span>`).join("") + `</td>`;
+    }
+    const hrs = weekHours(e.id);
+    h += `<td style="text-align:center;font-weight:700;${hrs > e.max ? "color:#dc2626" : ""}">${hrs}</td></tr>`;
+  }
+  const total = shifts.reduce((a, s) => a + dur(s), 0);
+  h += `<tr><th>Total</th>${WEEK.map((_, d) => `<th>${shifts.filter(s => s.day === d).reduce((a, s) => a + dur(s), 0)}h</th>`).join("")}<th>${total}h</th></tr>`;
+  $("#sgrid").innerHTML = h;
+  const cost = shifts.reduce((a, s) => a + dur(s) * empOf(s.emp).rate, 0);
+  const flagged = shifts.filter((s, i) => shiftWarnings(s, i).length).length;
+  $("#sched-summary").innerHTML = `<div class="mrow"><div class="grow"><b>${total} hours scheduled · est. ${money(cost)} labor</b>
+    <small>${flagged ? `⚠ ${flagged} shift${flagged > 1 ? "s" : ""} need attention (red outline)` : "✓ No conflicts"}</small></div></div>`;
+  const pend = timeOffReqs.map((t, i) => [t, i]).filter(([t]) => t.status === "Pending");
+  $("#to-reqs").innerHTML = pend.map(([t, i]) => `<div class="mrow"><span>🏖</span><div class="grow"><b>${empOf(t.emp).name} — time off</b>
+    <small>${t.from === t.to ? t.from : t.from + " → " + t.to}${t.reason ? " · " + t.reason : ""}</small></div>
+    <button class="ibtn" onclick="timeOffReqs[${i}].status='Denied';renderAll()">Deny</button><button class="ibtn" style="background:#16a34a;color:#fff;border-color:#16a34a" onclick="timeOffReqs[${i}].status='Approved';renderAll()">Approve</button></div>`).join("");
+}
+function fillEmpOptions() {
+  const d = +$("#sf-day").value, cur = $("#sf-emp").value;
+  $("#sf-emp").innerHTML = staff.map(e => `<option value="${e.id}">${e.name} · ${AVAIL_WORD[e.avail[d]]} · ${weekHours(e.id)}h</option>`).join("");
+  if (cur) $("#sf-emp").value = cur;
+}
+function openShiftForm(emp, day, idx) {
+  editIdx = idx;
+  const s = idx >= 0 ? shifts[idx] : { emp, day, start: empOf(emp).window === "Day" ? "14:00" : "18:00", end: empOf(emp).window === "Day" ? "20:00" : "02:00", pos: empOf(emp).pos };
+  $("#sf-day").innerHTML = WEEK.map((d, i) => `<option value="${i}">${d} ${WEEK_DATES[i]}</option>`).join("");
+  $("#sf-pos").innerHTML = Object.keys(POS).map(p => `<option>${p}</option>`).join("");
+  $("#sf-day").value = s.day; $("#sf-emp").value = ""; fillEmpOptions(); $("#sf-emp").value = s.emp;
+  $("#sf-pos").value = s.pos; $("#sf-start").value = s.start; $("#sf-end").value = s.end;
+  $("#sf-del").style.display = idx >= 0 ? "" : "none";
+  $("#shift-form").style.display = "block"; $("#s-adminsched .scroll").scrollTop = 0;
+  checkShift();
+}
+const readShift = () => ({ emp: $("#sf-emp").value, day: +$("#sf-day").value, pos: $("#sf-pos").value, start: $("#sf-start").value, end: $("#sf-end").value });
+function checkShift(dayChanged) {
+  if (dayChanged) fillEmpOptions();
+  const sh = readShift(), w = shiftWarnings(sh, editIdx);
+  $("#sf-warn").innerHTML = w.length ? `<div class="warnbox">⚠ ${w.join("<br>⚠ ")}<br><small>You can still save — it's flagged for review.</small></div>`
+    : `<div class="okbox">✓ ${dur(sh)}h · fits ${empOf(sh.emp).name.split(" ")[0]}'s availability</div>`;
+}
+function saveShift() {
+  const sh = readShift();
+  if (editIdx >= 0) shifts[editIdx] = sh; else shifts.push(sh);
+  schedStatus = "Unpublished changes"; $("#shift-form").style.display = "none"; renderAll(); toast("Shift saved");
+}
+function deleteShift() { shifts.splice(editIdx, 1); schedStatus = "Unpublished changes"; $("#shift-form").style.display = "none"; renderAll(); }
+function publishSchedule() { schedStatus = "Published"; renderAll(); toast(`Published — ${staff.length} people notified by push & text`); }
+
+function renderStaff() {
+  const mine = shifts.filter(s => s.emp === ME).sort((a, b) => a.day - b.day);
+  const next = mine.find(s => s.day >= TODAY);
+  $("#st-next").innerHTML = next ? `<div class="shiftcard"><small style="color:var(--muted)">NEXT SHIFT · ${next.day === TODAY ? "TONIGHT" : WEEK[next.day].toUpperCase() + " " + WEEK_DATES[next.day]}</small>
+    <div class="big">${short(next.start)} – ${short(next.end)}</div><div style="font-size:13px">${next.pos} · ${dur(next)} hours</div>
+    <div class="chips" style="margin:10px 0 0"><button class="on" onclick="go('staffclock')">${clock.on ? "On the clock ✓" : "Clock in"}</button></div></div>` : "";
+  $("#st-week").innerHTML = WEEK.map((d, i) => {
+    if (stMode === "team") {
+      const who = shifts.filter(s => s.day === i).sort((a, b) => mins(a.start) - mins(b.start));
+      return `<div class="dayrow ${i === TODAY ? "today" : ""}"><span class="d">${d} ${WEEK_DATES[i]}</span><div style="font-size:13px">${who.map(s => `<span style="color:${POS[s.pos]};font-weight:700">●</span> ${empOf(s.emp).name.split(" ")[0]} ${short(s.start)}–${short(s.end)}`).join("<br>") || "Closed?"}</div></div>`;
+    }
+    const s = mine.find(x => x.day === i);
+    return `<div class="dayrow ${s ? "" : "off"} ${i === TODAY ? "today" : ""}"><span class="d">${d} ${WEEK_DATES[i]}</span><span style="flex:1">${s ? `<b>${short(s.start)} – ${short(s.end)}</b> · ${s.pos}` : "Off"}</span>${s ? `<small style="color:var(--muted)">${dur(s)}h</small>` : ""}</div>`;
+  }).join("") + `<p style="margin:8px 16px;font-size:13px;color:var(--muted)">${weekHours(ME)} hours scheduled this week</p>`;
+  // clock
+  const todays = mine.find(s => s.day === TODAY);
+  $("#ck-shift").textContent = todays ? `Today's shift: ${short(todays.start)} – ${short(todays.end)} · ${todays.pos}` : "No shift today";
+  $("#ck-status").textContent = !clock.on ? "You're off the clock" : clock.onBreak ? "On break — clock is paused" : `On the clock since ${clock.since}`;
+  $("#ck-btns").innerHTML = !clock.on ? `<button class="bigbtn in" onclick="clockIn()">Clock in</button>`
+    : `<button class="bigbtn brk" onclick="clock.onBreak=!clock.onBreak;toast(clock.onBreak?'Break started':'Back from break');renderAll()">${clock.onBreak ? "End break" : "Start break"}</button><button class="bigbtn out" onclick="clockOut()">Clock out</button>`;
+  $("#ck-hist").innerHTML = clock.entries.map(e => `<div class="dayrow"><span class="d" style="width:auto">${e.day}</span><span style="flex:1;text-align:right">${e.in} – ${e.out}</span><b>${e.hrs}h</b></div>`).join("");
+  // availability
+  const me = empOf(ME);
+  $("#av-days").innerHTML = WEEK.map((d, i) => `<div class="avrow"><b>${d}</b><div class="seg">${[["prefer", "Prefer"], ["ok", "OK"], ["no", "Can't"]].map(([v, l]) =>
+    `<button class="${v} ${me.avail[i] === v ? "on" : ""}" onclick="empOf(ME).avail[${i}]='${v}';renderAll()">${l}</button>`).join("")}</div></div>`).join("");
+  $("#av-window").innerHTML = [["Day", "Day 2–8 PM"], ["Night", "Night 8 PM–2 AM"], ["Either", "Either"]].map(([v, l]) =>
+    `<button class="${me.window === v ? "on" : ""}" onclick="empOf(ME).window='${v}';renderAll()">${l}</button>`).join("");
+  $("#av-max").value = me.max; $("#av-note").value = me.note;
+  $("#av-to").innerHTML = timeOffReqs.filter(t => t.emp === ME).map(t => `<div class="mrow"><span>🏖</span><div class="grow">${t.from === t.to ? t.from : t.from + " → " + t.to}<small>${t.reason || "—"}</small></div><span class="kind ${t.status === "Pending" ? "new" : ""}">${t.status}</span></div>`).join("") || `<p style="margin:4px 16px;font-size:13px;color:var(--muted)">No requests yet.</p>`;
+}
+document.querySelectorAll("#st-mode button").forEach(b => b.onclick = () => {
+  stMode = b.dataset.m; document.querySelectorAll("#st-mode button").forEach(x => x.classList.toggle("on", x === b)); renderAll(); });
+function clockIn() { clock.on = true; clock.since = nowStr(); clock.ts = Date.now(); toast(`Clocked in at ${clock.since} · location verified`); renderAll(); }
+function clockOut() {
+  clock.entries.unshift({ day: "Today", in: clock.since, out: nowStr(), hrs: Math.max(0.01, (Date.now() - clock.ts) / 36e5).toFixed(2) });
+  clock.on = false; clock.onBreak = false; toast("Clocked out — nice work tonight"); renderAll();
+}
+function requestTimeOff() {
+  timeOffReqs.push({ emp: ME, from: $("#to-from").value, to: $("#to-to").value, reason: $("#to-reason").value, status: "Pending" });
+  $("#to-reason").value = ""; toast("Request sent to your manager"); renderAll();
+}
+function askCover(i) { coverReqs.push({ shift: i, from: ME, by: null, note: "", status: "Open" }); toast("Posted — teammates who can cover were notified"); renderAll(); }
+function claimCover(r) { coverReqs[r].by = ME; coverReqs[r].status = "Claimed"; toast("Thanks! Waiting for manager approval"); renderAll(); }
+function decideCover(r, ok) {
+  const c = coverReqs[r];
+  c.status = ok ? "Approved" : "Denied";
+  if (ok) { shifts[c.shift].emp = c.by; schedStatus = "Unpublished changes"; }
+  toast(ok ? `${empOf(c.by).name.split(" ")[0]} now has the shift · both notified` : "Cover denied · both notified"); renderAll();
+}
+const shiftLabel = s => `${WEEK[s.day]} ${WEEK_DATES[s.day]} · ${short(s.start)}–${short(s.end)} · ${s.pos}`;
+function renderCover() {
+  const live = coverReqs.map((c, r) => [c, r]).filter(([c]) => c.status === "Open" || c.status === "Claimed");
+  const myPos = empOf(ME).pos;
+  $("#cv-open").innerHTML = live.filter(([c]) => c.from !== ME && shifts[c.shift].pos === myPos).map(([c, r]) => {
+    const s = shifts[c.shift], w = shiftWarnings({ ...s, emp: ME }, -1);
+    return `<div class="line"><b>${shiftLabel(s)}</b><div class="mods">From ${empOf(c.from).name}${c.note ? " · " + c.note : ""}</div>
+      ${w.length ? `<div class="warnbox" style="margin:8px 0 0">⚠ ${w.join("<br>⚠ ")}</div>` : ""}
+      <div class="chips" style="margin:10px 0 0">${c.by === ME ? `<span class="kind new">You offered · waiting for manager</span>` : c.by ? `<span class="kind">Taken by ${empOf(c.by).name}</span>` : `<button class="on" onclick="claimCover(${r})">I'll take it</button>`}</div></div>`;
+  }).join("") || `<p style="margin:4px 16px;font-size:13px;color:var(--muted)">Nothing up for grabs right now.</p>`;
+  $("#cv-mine").innerHTML = shifts.map((s, i) => [s, i]).filter(([s]) => s.emp === ME).sort((a, b) => a[0].day - b[0].day).map(([s, i]) => {
+    const c = coverReqs.find(x => x.shift === i && x.from === ME && x.status !== "Denied");
+    return `<div class="mrow"><div class="grow"><b>${shiftLabel(s)}</b><small>${c ? (c.by ? `${empOf(c.by).name} offered · ${c.status === "Approved" ? "approved" : "waiting for manager"}` : "Posted · waiting for a teammate") : `${dur(s)} hours`}</small></div>
+      ${c ? `<span class="kind new">${c.status}</span>` : `<button class="ibtn" onclick="askCover(${i})">Ask for cover</button>`}</div>`;
+  }).join("");
+  const nOpen = live.filter(([c]) => c.from !== ME && !c.by && shifts[c.shift].pos === myPos).length;
+  $("#cv-cnt").textContent = nOpen; $("#cv-cnt").style.display = nOpen ? "" : "none";
+  // admin side
+  $("#cv-reqs").innerHTML = live.map(([c, r]) => {
+    const s = shifts[c.shift];
+    if (!c.by) return `<div class="mrow"><span>🔁</span><div class="grow"><b>${empOf(c.from).name} wants cover</b><small>${shiftLabel(s)} · no one has offered yet</small></div></div>`;
+    const w = shiftWarnings({ ...s, emp: c.by }, c.shift);
+    return `<div class="mrow"><span>🔁</span><div class="grow"><b>${empOf(c.by).name} covers ${empOf(c.from).name}</b><small>${shiftLabel(s)}${w.length ? ` · <span style="color:#b91c1c">⚠ ${w.join(" · ")}</span>` : " · ✓ no conflicts"}</small></div>
+      <button class="ibtn" onclick="decideCover(${r},false)">Deny</button><button class="ibtn" style="background:#16a34a;color:#fff;border-color:#16a34a" onclick="decideCover(${r},true)">Approve</button></div>`;
+  }).join("");
+  const nClaimed = live.filter(([c]) => c.by).length;
+  $("#home-cover").textContent = nClaimed ? `${nClaimed} shift cover request${nClaimed > 1 ? "s" : ""} to approve` : live.length ? `${live.length} shift${live.length > 1 ? "s" : ""} looking for cover` : "No shift cover requests";
+}
+const REQ_STEPS = { band: ["New", "Contacted", "Booked", "Declined"], private: ["New", "Quoted", "Deposit paid", "Booked", "Declined"],
+  catering: ["New", "Quoted", "Deposit paid", "Booked", "Declined"], jobs: ["New", "Interview", "Hired", "Declined"] };
+function renderRequests() {
+  const nNew = submissions.filter(s => s.status === "New").length;
+  $("#req-new").textContent = nNew + " new"; $("#home-req").textContent = nNew ? `${nNew} new request${nNew > 1 ? "s" : ""}` : "Requests inbox";
+  const kinds = [["all", "All"], ["band", "🎸 Bands"], ["private", "🎉 Private events"], ["catering", "🍕 Catering"], ["jobs", "💼 Jobs"]];
+  $("#req-filter").innerHTML = kinds.map(([k, l]) => `<button class="${reqFilter === k ? "on" : ""}" onclick="reqFilter='${k}';renderAll()">${l}</button>`).join("");
+  $("#req-list").innerHTML = submissions.map((s, i) => [s, i]).filter(([s]) => reqFilter === "all" || s.page === reqFilter).map(([s, i]) => {
+    const steps = REQ_STEPS[s.page] || REQ_STEPS.band, depo = ["private", "catering"].includes(s.page);
+    return `<div class="line"><div style="display:flex;justify-content:space-between;gap:8px"><b>${s.name}</b><span class="kind ${s.status === "New" ? "new" : ""}">${s.status}</span></div>
+      <div class="mods">${pages[s.page].title} · ${s.when}</div><div style="margin-top:6px;font-size:13px">${s.detail}</div>
+      <div class="chips" style="margin:10px 0 0">${steps.map(st => `<button class="${s.status === st ? "on" : ""}" onclick="setSub(${i},'${st}')">${st}</button>`).join("")}</div>
+      <div class="chips" style="margin:6px 0 0"><button onclick="toast('Reply opened — sends from your email')">✉️ Reply</button>${depo ? `<button onclick="toast('Deposit link sent · pay by bank transfer or card')">💵 Send deposit link</button>` : ""}${s.page === "band" ? `<button onclick="go('adminevents');toggleEvForm(true)">📅 Add to events</button>` : ""}</div></div>`;
+  }).join("") || `<p style="margin:4px 16px;font-size:13px;color:var(--muted)">Nothing here yet.</p>`;
+}
+
+// four test accounts seeded on every site (real app: seed/test-accounts.ts)
+const TEST_DOMAIN = "thehoodpalmdesert.com", TEST_PASS = "password123";
+const TEST_ACCOUNTS = [
+  { user: "admin", label: "Admin", note: "Owner dashboard", to: "admin" },
+  { user: "employee", label: "Employee", note: "Alex · bartender", to: "staffsched" },
+  { user: "kitchen", label: "Kitchen", note: "Orders + 86 board", to: "kitchen", kitchen: true },
+  { user: "customer", label: "Customer", note: "Order history", to: "account" },
+];
+function fillTest(i) { $("#li-email").value = TEST_ACCOUNTS[i].user + "@" + TEST_DOMAIN; $("#li-pass").value = TEST_PASS; $("#li-err").textContent = ""; }
+function signIn() {
+  const email = $("#li-email").value.trim().toLowerCase();
+  const a = TEST_ACCOUNTS.find(t => t.user + "@" + TEST_DOMAIN === email);
+  if (!a || $("#li-pass").value !== TEST_PASS) { $("#li-err").textContent = "Email or password doesn't match."; return; }
+  kitchenMode = !!a.kitchen;
+  if (a.user === "customer") $("#acct-email").textContent = email;
+  toast("Signed in as " + a.label); go(a.to);
+}
+
+function renderTimesheets() {
+  $("#ts-now").innerHTML = (clock.on ? `<div class="mrow"><span style="color:#16a34a">●</span><div class="grow"><b>Alex M.</b><small>Bartender · since ${clock.since}${clock.onBreak ? " · on break" : ""} · 📍 verified</small></div></div>` : "") +
+    `<div class="mrow"><span style="color:#16a34a">●</span><div class="grow"><b>Jordan P.</b><small>Cook · since 1:58 PM · 📍 verified</small></div></div>`;
+  const rows = [["Alex M.", 30, 30.6, ""], ["Jordan P.", 40, 43.2, "3.2h overtime"], ["Sam R.", 18, 17.5, ""], ["Taylor K.", 24, 24.8, "Missed meal break Sat"], ["Riley D.", 10, 10.7, "Clocked out 40 min late Fri"]];
+  $("#ts-rows").innerHTML = rows.map(([n, sch, act, flag]) => `<div class="mrow"><div class="grow"><b>${n}</b><small>Scheduled ${sch}h · Worked ${act}h${flag ? ` · <span style="color:#b91c1c">⚠ ${flag}</span>` : ""}</small></div><button class="ibtn">Edit</button></div>`).join("");
+}
+setInterval(() => { const n = $("#ck-now"); if (n) n.textContent = nowStr(); }, 15000);
+
+function renderAll() {
+  if ($("#ck-now")) $("#ck-now").textContent = nowStr();
+  renderSchedule();
+  renderStaff();
+  renderTimesheets();
+  renderCover();
+  $("#li-test").innerHTML = TEST_ACCOUNTS.map((t, i) => `<button onclick="fillTest(${i})"><b>${t.label}</b><small>${t.user}@${TEST_DOMAIN}</small><small>${t.note}</small></button>`).join("");
+  renderRequests();
+  document.querySelectorAll("[data-foot]").forEach(f => f.innerHTML = footerHtml());
+  renderAdminEvents();
+  renderAdminPages();
+  renderHome();
+  renderMenu();
+  const t = totals();
+  $("#cart-list").innerHTML = linesHtml() + (cart.length ? `<div class="totals">${totalsHtml(t, false)}</div>` : "");
+  $("#cart-total2").textContent = money(t.sub + t.tax);
+  $("#co-totals").innerHTML = totalsHtml(t); $("#co-total").textContent = money(t.total);
+  $("#receipt-lines").innerHTML = linesHtml(); $("#receipt-totals").innerHTML = totalsHtml(t);
+  $("#admin-86").innerHTML = items.map(i => `<div class="row"><span>${i.emoji} ${i.name}<br><small style="color:var(--muted)">${money(i.price)} · ${i.groups.length} modifier groups</small></span>
+    <span class="switch ${sold.has(i.id) ? "off" : ""}" onclick="flip86('${i.id}')"></span></div>`).join("") +
+    `<p style="margin:8px 16px;font-size:12px;color:var(--muted)">Switch off = 86'd until end of day. Updates web + voice instantly.</p>`;
+  $("#k-86").innerHTML = items.map(i => `<div class="row" style="min-height:64px;font-size:17px"><span>${i.emoji} <b>${i.name}</b>${sold.has(i.id) ? ' <span class="kind new">86\'d</span>' : ""}</span>
+    <span class="switch ${sold.has(i.id) ? "off" : ""}" onclick="flip86('${i.id}')"></span></div>`).join("") +
+    `<p style="margin:8px 16px;font-size:13px;color:var(--muted)">Kitchen can 86 items and run tickets. Prices, menu edits and reports stay in admin.</p>`;
+}
+function flip86(id) { sold.has(id) ? sold.delete(id) : sold.add(id); renderAll(); }
+
+document.querySelectorAll("#tips button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#tips button").forEach(x => x.classList.remove("on")); b.classList.add("on"); tipPct = +b.dataset.t; renderAll(); });
+
+let desktop = false, curScreen = "home";
+function go(s) {
+  curScreen = s;
+  document.querySelectorAll(".screen").forEach(x => x.classList.toggle("on", x.id === "s-" + s));
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.s === s));
+  if (!["kitchen", "k86"].includes(s)) kitchenMode = false;
+  if (s === "k86") kitchenMode = true;
+  $("#phone").classList.toggle("tablet", ["kitchen", "k86"].includes(s) && !desktop);
+  // mobile: tab bar only on browsing screens (checkout/status keep one bottom action)
+  // desktop: top nav on every customer screen
+  const customer = ["home", "menu", "cart", "events", "account", "page", "privacy", "terms", "login"];
+  const admin = ["admin", "kitchen", "menuadmin", "adminevents", "adminpages", "adminmore", "news", "adminsched", "admintime", "adminreq"];
+  const staffS = ["staffsched", "staffclock", "staffavail", "staffcover"];
+  const tabs = (desktop ? customer.concat("checkout", "status") : customer).includes(s);
+  const ktabs = kitchenMode, atabs = admin.includes(s) && !ktabs, stabs = staffS.includes(s);
+  $("#tabbar").classList.toggle("hide", !tabs);
+  $("#adminbar").classList.toggle("hide", !atabs);
+  $("#staffbar").classList.toggle("hide", !stabs);
+  $("#kitchenbar").classList.toggle("hide", !ktabs);
+  $("#phone").classList.toggle("has-tabs", tabs || atabs || stabs || ktabs);
+  document.querySelectorAll("#tabbar button, #staffbar button, #kitchenbar button").forEach(b => b.classList.toggle("on", b.dataset.t === (s === "staffcover" ? "staffsched" : s)));
+  const aTab = ["adminpages", "news", "menuadmin", "adminreq"].includes(s) ? "adminmore" : s === "admintime" ? "adminsched" : s;
+  document.querySelectorAll("#adminbar button").forEach(b => b.classList.toggle("on", b.dataset.t === aTab));
+  if ($("#shift-form")) $("#shift-form").style.display = "none";
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.s === s && (!b.dataset.p || b.dataset.p === curPage) && !!b.dataset.k === kitchenMode));
+  closeSheet();
+}
+document.querySelectorAll("#tabbar button, #adminbar button, #staffbar button, #kitchenbar button").forEach(b => b.onclick = () => go(b.dataset.t));
+
+function setView(v) {
+  desktop = v === "desktop";
+  $("#phone").classList.toggle("desktop", desktop);
+  $(".wrap").classList.toggle("desk", desktop);
+  document.querySelectorAll("#viewtoggle button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  try { localStorage.setItem("mock-view", v); } catch (e) {}
+  go(curScreen);
+}
+document.querySelectorAll("#viewtoggle button").forEach(b => b.onclick = () => setView(b.dataset.v));
+document.querySelectorAll("#nav button").forEach(b => b.onclick = () => { kitchenMode = !!b.dataset.k; b.dataset.p ? openPage(b.dataset.p) : go(b.dataset.s); });
+
+// seed one line so cart/receipt aren't empty
+(function seed() {
+  const p = items[0];
+  const sel = { whole: { action: "choose" }, jal: { action: "add", qty: "normal", place: "whole" } };
+  for (const m of groups.ogComes.mods) sel[m.id] = { action: "keep", qty: "normal" };
+  sel.saus = { action: "remove" };
+  cart.push({ item: p, sel, total: 0 });
+  cart[0].total = priceLine(p, cart[0].sel);
+})();
+renderAll();
+let savedView = "mobile";
+try { savedView = localStorage.getItem("mock-view") || "mobile"; } catch (e) {}
+setView(savedView);
+</script>
+</body>
+</html>
