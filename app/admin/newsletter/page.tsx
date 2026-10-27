@@ -1,3 +1,4 @@
+import { restaurant } from "@/config/restaurant";
 import { desc, sql } from "drizzle-orm";
 import { getDb, schema as s } from "@/db/client";
 import { sendCampaign } from "@/server/actions/admin";
@@ -13,7 +14,7 @@ export default async function Newsletter() {
     db.select().from(s.campaigns).orderBy(desc(s.campaigns.createdAt)),
     getUpcomingEvents(14),
   ]);
-  const draft = `This week at The Hood:\n\n${events.slice(0, 4).map((e) => { const d = dayLabel(e.on); return `${d.dow} ${d.month} ${d.day} — ${e.title}`; }).join("\n")}\n\nOrder ahead anytime on our site. See you soon!`;
+  const draft = `This week at ${restaurant.shortName}:\n\n${events.slice(0, 4).map((e) => { const d = dayLabel(e.on); return `${d.dow} ${d.month} ${d.day} — ${e.title}`; }).join("\n")}\n\nOrder ahead anytime on our site. See you soon!`;
   return (
     <>
       <div className="admin-top"><b>Newsletter</b><span className="muted small">{n} subscribers</span></div>

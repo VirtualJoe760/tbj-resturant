@@ -3,6 +3,8 @@
 //   create-restaurant login                 store our API keys (hidden prompts)
 //   create-restaurant new [--answers a.json] questionnaire (or answers file for scripted runs)
 //   create-restaurant list                  intakes on this machine
+//   create-restaurant switch [--google "John's Diner, Indio, CA" | --yelp <url> | --website <url>] [--deploy]
+//                                           point this repo's demo site at a different business
 import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
@@ -13,6 +15,7 @@ import { readWebsite } from "./sources/website.ts";
 import { readMenu, sortPhotos } from "./sources/ai.ts";
 import { parsePlainMenu } from "./sources/manual-menu.ts";
 import { writeClient } from "./write.ts";
+import { applyToApp, findAppRoot, timezoneFor } from "./apply.ts";
 import type { Intake, Menu, Photo } from "./types.ts";
 
 const ROOT = process.env.CR_OUT ?? path.resolve(process.cwd(), "clients");
@@ -52,12 +55,17 @@ interface Answers {
   features?: Record<string, boolean>;
 }
 
-async function newRestaurant(answersFile?: string) {
-  const scripted: Answers | null = answersFile ? JSON.parse(fs.readFileSync(answersFile, "utf8")) : null;
+interface SwitchOptions {
+  root: string;
+  deploy: boolean;
+  local: boolean;
+}
+
+async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions) {
   const ask = async <T>(key: keyof Answers, q: () => Promise<T | symbol>): Promise<T> => (scripted ? (scripted[key] as T) : cancel(await q()));
   for (const k of ["ANTHROPIC_API_KEY"] as KeyName[]) if (!process.env[k] && getKey(k)) process.env[k] = getKey(k);
 
-  p.intro("New restaurant demo");
+  p.intro(switching ? "Switch the demo site to a new business" : "New restaurant demo");
   const name = await ask<string>("name", () => p.text({ message: "Restaurant name?", validate: (v) => (v ? undefined : "Required") }));
   const city = await ask<string>("city", () => p.text({ message: "City?", placeholder: "Palm Desert, CA" }));
   const intake: Intake = { slug: slugify(name), name, city, timezone: "America/Los_Angeles", links: {}, photos: [], features: {}, sources: { name: "manual" }, createdAt: new Date().toISOString() };
@@ -180,6 +188,8 @@ async function newRestaurant(answersFile?: string) {
     }
   } else if (intake.photos.length) p.log.info(`${intake.photos.length} photos found (add an Anthropic key to sort them automatically).`);
 
+  intake.timezone = timezoneFor(intake.address);
+
   // 7. Features
   intake.features = scripted?.features ?? Object.fromEntries(((cancel(await p.multiselect({
     message: "Demo features",
@@ -197,8 +207,21 @@ async function newRestaurant(answersFile?: string) {
   ].join("\n"), "Review");
   if (!scripted && !cancel(await p.confirm({ message: "Write the client files?" }))) return p.cancel("Nothing written.");
 
-  const dir = writeClient(ROOT, intake, guesses);
-  p.outro(`Wrote ${path.relative(process.cwd(), dir)}. Next: load it into the app with \`pnpm import-client ${intake.slug}\`, then deploy the demo.`);
+  const clientsDir = switching ? path.join(switching.root, "clients") : ROOT;
+  const dir = writeClient(clientsDir, intake, guesses);
+  if (!switching) return p.outro(`Wrote ${path.relative(process.cwd(), dir)}. Next: \`create-restaurant switch --answers\` or \`pnpm import-client ${intake.slug}\`.`);
+
+  const deploy = switching.deploy || (!scripted && cancel(await p.confirm({ message: "Push it so the Vercel preview site switches too?" })) === true);
+  try {
+    // The live preview's database is updated during the Vercel build (scripts/setup-db.ts),
+    // so no database password is needed here. --local also loads the local dev database.
+    const log = applyToApp(intake, { root: switching.root, clientsDir, deploy, skipImport: !switching.local });
+    for (const line of log) p.log.success(line);
+  } catch (e) {
+    p.log.error((e as Error).message);
+    process.exit(1);
+  }
+  p.outro(deploy ? `The preview site will show ${intake.name} in about 2 minutes.` : `Local config now points at ${intake.name}. Run with --deploy to update the preview site.`);
 }
 
 function list() {
@@ -214,7 +237,44 @@ function list() {
 
 const [cmd, ...rest] = process.argv.slice(2);
 const answersIdx = rest.indexOf("--answers");
+const flag = (name: string) => {
+  const i = rest.indexOf(`--${name}`);
+  return i >= 0 ? rest[i + 1] : undefined;
+};
+const readAnswers = (): Answers | null => (answersIdx >= 0 ? JSON.parse(fs.readFileSync(rest[answersIdx + 1], "utf8")) : null);
+
 if (cmd === "login") await login();
-else if (cmd === "new") await newRestaurant(answersIdx >= 0 ? rest[answersIdx + 1] : undefined);
+else if (cmd === "new") await newRestaurant(readAnswers());
+else if (cmd === "switch") {
+  const root = findAppRoot();
+  if (!root) {
+    console.error("Run this inside the restaurant app repo (the folder with src/config/restaurant.ts).");
+    process.exit(1);
+  }
+  // Flags pre-answer the questionnaire; anything missing is asked interactively.
+  let answers = readAnswers();
+  const google = flag("google");
+  const yelp = flag("yelp");
+  const website = flag("website");
+  if (!answers && (google || yelp || website || flag("name"))) {
+    const [gName, ...gCity] = (google ?? "").split(",").map((x) => x.trim());
+    answers = {
+      name: flag("name") ?? gName ?? "",
+      city: flag("city") ?? gCity.join(", "),
+      google: !!google,
+      yelp: yelp ?? "",
+      website: website ?? "",
+      menuText: flag("menu-text"),
+      menuFiles: flag("menu-file") ? [flag("menu-file")!] : undefined,
+      address: flag("address"), phone: flag("phone"), email: flag("email"),
+      features: { ordering: true, events: true, scheduling: true, newsletter: true },
+    };
+    if (!answers.name) {
+      console.error(`Give the business name: --google "John's Diner, Indio, CA" or --name "John's Diner" --city "Indio, CA"`);
+      process.exit(1);
+    }
+  }
+  await newRestaurant(answers, { root, deploy: rest.includes("--deploy"), local: rest.includes("--local") });
+}
 else if (cmd === "list") list();
-else console.log("Usage: create-restaurant <login | new [--answers file.json] | list>");
+else console.log("Usage: create-restaurant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--deploy] [--local]>");
