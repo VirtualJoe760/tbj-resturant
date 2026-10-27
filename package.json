@@ -12,7 +12,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
-    "seed:check": "tsx src/db/seed.ts --dry-run"
+    "seed:check": "tsx src/db/seed.ts --dry-run",
+    "import-client": "tsx --tsconfig tsconfig.json scripts/import-client.ts",
+    "create-restaurant": "node packages/create-restaurant/bin.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.3.8",

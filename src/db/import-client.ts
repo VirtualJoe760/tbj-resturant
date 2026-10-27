@@ -1,0 +1,58 @@
+// Loads a create-restaurant intake (clients/<slug>/) into the database: brand, location,
+// hours and menu. Orders, staff and test accounts are left alone.
+import fs from "node:fs";
+import path from "node:path";
+import { eq } from "drizzle-orm";
+import type { PgliteDatabase } from "drizzle-orm/pglite";
+import * as s from "./schema";
+
+interface MenuJson {
+  categories: { name: string; items: { name: string; description: string; price_cents: number; orderable_online: boolean; tags: string[];
+    modifier_groups: { name: string; kind: "choice" | "addon" | "removal" | "option"; min: number; max: number; options: { name: string; price_cents: number; is_default: boolean }[] }[] }[] }[];
+}
+
+const slug = (x: string) => x.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+const EMOJI: [RegExp, string][] = [[/pizza|pie/i, "🍕"], [/wing|chicken|tender/i, "🍗"], [/salad/i, "🥗"], [/burger/i, "🍔"], [/taco|nacho/i, "🌮"], [/beer|ipa|lager/i, "🍺"], [/wine/i, "🍷"], [/soda|drink|lemonade/i, "🥤"], [/fries|tots/i, "🍟"], [/sandwich|philly|sub/i, "🥪"], [/dessert|cookie|cake/i, "🍰"]];
+
+export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
+  const intake = JSON.parse(fs.readFileSync(path.join(dir, "intake.json"), "utf8"));
+  const menuFile = path.join(dir, "menu.json");
+  const menu: MenuJson | null = fs.existsSync(menuFile) ? JSON.parse(fs.readFileSync(menuFile, "utf8")) : null;
+
+  await db.update(s.brand).set({ name: intake.name, settings: { theme: intake.theme ?? null, links: intake.links, slug: intake.slug } }).where(eq(s.brand.id, "brand"));
+  await db.update(s.locations).set({
+    name: intake.city?.split(",")[0] ?? "Main", address: intake.address ?? "", phone: intake.phone ?? null,
+    ...(intake.location ? { lat: intake.location.lat, lng: intake.location.lng } : {}),
+  }).where(eq(s.locations.id, "main"));
+  if (intake.hours?.length) {
+    await db.delete(s.locationHours).where(eq(s.locationHours.locationId, "main"));
+    await db.insert(s.locationHours).values(intake.hours.map((h: { weekday: number; opensAt: string; closesAt: string }) => ({ locationId: "main", ...h })));
+  }
+  if (!menu) return { items: 0 };
+
+  // replace the menu (featured items and item links cascade)
+  await db.delete(s.featuredItems);
+  await db.delete(s.itemModifierGroups);
+  await db.delete(s.items);
+  await db.delete(s.modifiers);
+  await db.delete(s.modifierGroups);
+  await db.delete(s.categories);
+  let n = 0;
+  for (const [ci, c] of menu.categories.entries()) {
+    const catId = slug(c.name) || `cat-${ci}`;
+    await db.insert(s.categories).values({ id: catId, name: c.name, sort: ci }).onConflictDoNothing();
+    for (const [ii, it] of c.items.entries()) {
+      const itemId = `${catId}-${slug(it.name)}-${ii}`;
+      await db.insert(s.items).values({ id: itemId, categoryId: catId, name: it.name, description: it.description, basePriceCents: it.price_cents, orderableOnline: it.orderable_online, tags: it.tags, emoji: EMOJI.find(([re]) => re.test(it.name + " " + c.name))?.[1] ?? "🍽️", sort: n++ });
+      for (const [gi, g] of it.modifier_groups.entries()) {
+        const gid = `${itemId}-g${gi}`;
+        await db.insert(s.modifierGroups).values({ id: gid, name: g.name, kind: g.kind, minSelect: g.min, maxSelect: g.max });
+        await db.insert(s.modifiers).values(g.options.map((o, oi) => ({ id: `${gid}-${oi}`, groupId: gid, name: o.name, priceCents: o.price_cents, isDefault: o.is_default, sort: oi })));
+        await db.insert(s.itemModifierGroups).values({ itemId, groupId: gid, sort: gi });
+      }
+    }
+  }
+  const first = await db.select().from(s.items).limit(4);
+  await db.insert(s.featuredItems).values(first.map((i, k) => ({ itemId: i.id, badge: ["NEW", "STAFF PICK", "FAN FAVE", "TRY IT"][k], blurb: i.description.slice(0, 60), sort: k })));
+  return { items: n };
+}

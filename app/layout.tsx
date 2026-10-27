@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { isDemo, restaurant } from "@/config/restaurant";
+import { RegisterSW } from "@/components/RegisterSW";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,7 +19,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const vars = { "--primary": t.primary, "--primary-ink": t.primaryInk, "--header": t.header, "--bg": t.bg } as React.CSSProperties;
   return (
     <html lang="en">
-      <body style={vars}>{children}</body>
+      <body style={vars}>
+        {children}
+        <RegisterSW />
+      </body>
     </html>
   );
 }
