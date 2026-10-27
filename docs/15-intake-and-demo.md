@@ -189,5 +189,6 @@ Runs the existing go-live steps from [08](08-cloning-playbook.md), starting from
 |---|---|
 | `packages/create-restaurant` | `login`, `new` (interactive or `--answers file.json`), `list`. Google Places, Yelp API, website reader, Claude menu reading + photo sorting, manual intake, review, writes `clients/<slug>/` (intake.json, menu.json, photos.json, owner-questions.md) |
 | `pnpm import-client <slug>` | Loads brand, address, hours and menu into the database |
+| `create-restaurant switch` | Points this repo's demo at another business: `--google "John's Diner, Indio, CA"`, `--yelp <url>`, `--website <url>` (or the questionnaire). Regenerates `src/config/restaurant.ts`, writes `clients/<slug>/`, renames pages and test accounts (`admin@johnsdiner.com`…). `--deploy` commits and pushes; the Vercel build (`scripts/setup-db.ts`) then loads the business into Neon, so no database password is needed on this computer. `--local` also loads it into the local database |
 | Demo mode | `APP_MODE=demo`: banner, noindex, demo checkout with test card, Demo inbox, four test accounts on `/login` |
 | Not yet | Vercel deploy step, shared demo Neon schema per prospect, pitch panel PIN/QR, `promote`, `reset`, `delete`. Keys are kept in `~/.config/create-restaurant/credentials.json` (owner-only), not the OS keychain yet |

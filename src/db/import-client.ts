@@ -44,10 +44,10 @@ export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
     name: intake.city?.split(",")[0] ?? "Main", address: intake.address ?? "", phone: intake.phone ?? null,
     ...(intake.location ? { lat: intake.location.lat, lng: intake.location.lng } : {}),
   }).where(eq(s.locations.id, "main"));
-  if (intake.hours?.length) {
-    await db.delete(s.locationHours).where(eq(s.locationHours.locationId, "main"));
-    await db.insert(s.locationHours).values(intake.hours.map((h: { weekday: number; opensAt: string; closesAt: string }) => ({ locationId: "main", ...h })));
-  }
+  // no hours found → 11 AM–9 PM every day, flagged in owner-questions.md
+  const hours: { weekday: number; opensAt: string; closesAt: string }[] = intake.hours?.length ? intake.hours : [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, opensAt: "11:00", closesAt: "21:00" }));
+  await db.delete(s.locationHours).where(eq(s.locationHours.locationId, "main"));
+  await db.insert(s.locationHours).values(hours.map((h) => ({ locationId: "main", ...h })));
   if (!menu) return { items: 0 };
 
   // replace the menu (featured items and item links cascade)
