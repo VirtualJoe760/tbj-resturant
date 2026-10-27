@@ -17,13 +17,18 @@ const g = globalThis as unknown as { __db?: Db; __pglite?: PGlite; __dbReady?: P
 const migrationsFolder = path.join(process.cwd(), "drizzle");
 // On Vercel without Neon the only writable place is /tmp: each server instance gets its own
 // short-lived copy. Fine for a quick look; connect Neon so phone, tablet and laptop share data.
-const dataDir = process.env.VERCEL ? "/tmp/pglite" : path.join(process.cwd(), ".data", "pglite");
+const dataRoot = process.env.VERCEL ? "/tmp" : path.join(process.cwd(), ".data");
+// .data/active names the current database folder, so a damaged one can be replaced without
+// deleting files Windows may still have open.
+const activeFile = path.join(dataRoot, "active");
+const dataDir = () => path.join(dataRoot, fs.existsSync(activeFile) ? fs.readFileSync(activeFile, "utf8").trim() : "pglite");
 
 function create(): Db {
   const url = process.env.DATABASE_URL;
   if (url) return drizzleNeon(neon(url), { schema }) as unknown as Db;
-  fs.mkdirSync(dataDir, { recursive: true });
-  g.__pglite = new PGlite(dataDir);
+  const dir = dataDir();
+  fs.mkdirSync(dir, { recursive: true });
+  g.__pglite = new PGlite(dir);
   if (!g.__closeHooked) {
     // close cleanly so a stopped dev server doesn't leave the data files half-written
     g.__closeHooked = true;
@@ -55,7 +60,8 @@ export function ready(): Promise<void> {
       // Local demo data only: set a damaged database aside and start fresh from the seed.
       console.warn("Local database could not be opened; rebuilding it from seed data.", e);
       await g.__pglite?.close().catch(() => {});
-      if (fs.existsSync(dataDir)) fs.renameSync(dataDir, `${dataDir}-broken-${Date.now()}`);
+      fs.mkdirSync(dataRoot, { recursive: true });
+      fs.writeFileSync(activeFile, `pglite-${Date.now()}`);
       g.__db = create();
       await migrateAndSeed();
     }

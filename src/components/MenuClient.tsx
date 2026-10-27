@@ -5,7 +5,7 @@ import { cart, useCart } from "@/components/cart-store";
 import { toast } from "@/components/Toast";
 import { describeSelections, validateSelections } from "@/domain/cart";
 import { defaultSelections, money, priceLine, type GroupDef, type Selections } from "@/domain/pricing";
-import type { MenuCategory, MenuItemView } from "@/server/queries";
+import type { MenuCategory, MenuItemView } from "@/domain/menu-view";
 
 export function MenuClient({ menu, openItem }: { menu: MenuCategory[]; openItem?: string }) {
   const all = menu.flatMap((c) => c.items);

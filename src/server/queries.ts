@@ -5,6 +5,7 @@ import { loadItemDefs } from "@/db/seed";
 import { restaurant } from "@/config/restaurant";
 import { isOpenNow, summarizeHours } from "@/domain/hours";
 import { occurrences } from "@/domain/events";
+import type { MenuCategory } from "@/domain/menu-view";
 
 export const LOCATION_ID = "main";
 
@@ -21,7 +22,7 @@ export async function getLocation() {
 
 export const isSoldOut = (it: { soldOutUntil: Date | null }) => !!it.soldOutUntil && it.soldOutUntil > new Date();
 
-export async function getMenu() {
+export async function getMenu(): Promise<MenuCategory[]> {
   const db = await getDb();
   const [cats, its, defs] = await Promise.all([
     db.select().from(s.categories).where(eq(s.categories.isVisible, true)).orderBy(asc(s.categories.sort)),
@@ -36,8 +37,7 @@ export async function getMenu() {
     })),
   }));
 }
-export type MenuCategory = Awaited<ReturnType<typeof getMenu>>[number];
-export type MenuItemView = MenuCategory["items"][number];
+export type { MenuCategory, MenuItemView } from "@/domain/menu-view";
 
 export async function getHomeData() {
   const db = await getDb();

@@ -1,5 +1,5 @@
 import { getMenu, getLocation } from "@/server/queries";
-import { MenuClient } from "./MenuClient";
+import { MenuClient } from "@/components/MenuClient";
 
 export const metadata = { title: "Menu" };
 
