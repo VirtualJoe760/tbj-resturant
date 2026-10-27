@@ -182,3 +182,12 @@ Runs the existing go-live steps from [08](08-cloning-playbook.md), starting from
 | Google Places API | Free monthly allowance covers dozens of lookups a day |
 | Claude API (menu/website import) | Cents per demo |
 | Vercel | Our existing **Vercel Pro** account (already paid). Every demo is a project on it; no extra cost per demo |
+
+## Built so far (v1)
+
+| Piece | Status |
+|---|---|
+| `packages/create-restaurant` | `login`, `new` (interactive or `--answers file.json`), `list`. Google Places, Yelp API, website reader, Claude menu reading + photo sorting, manual intake, review, writes `clients/<slug>/` (intake.json, menu.json, photos.json, owner-questions.md) |
+| `pnpm import-client <slug>` | Loads brand, address, hours and menu into the database |
+| Demo mode | `APP_MODE=demo`: banner, noindex, demo checkout with test card, Demo inbox, four test accounts on `/login` |
+| Not yet | Vercel deploy step, shared demo Neon schema per prospect, pitch panel PIN/QR, `promote`, `reset`, `delete`. Keys are kept in `~/.config/create-restaurant/credentials.json` (owner-only), not the OS keychain yet |

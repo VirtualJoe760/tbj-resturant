@@ -3,6 +3,24 @@
 Phases are ordered so each ends with something demoable. Rough sizes assume one developer
 working with Claude Code.
 
+## Status (2026-10-27, v1 running locally)
+
+| Phase | Built | Still to do |
+|---|---|---|
+| 0 Foundations | Next.js, Drizzle schema + migrations, Neon or embedded Postgres, seed, Vitest | Vercel project, Sentry, Playwright, shadcn/ui (plain CSS used) |
+| 1 Menu & cart | Pricing/cart/hours domain + tests, menu with item builder (light/extra/halves), cart | Search, pickup-slot throttling |
+| 2 Checkout | `PaymentProvider` with demo + Stripe Checkout (connect/direct), webhook, live status page | Payment Element, promo codes, Stripe Tax; Stripe path untested without keys |
+| 3 Admin & kitchen | Dashboard, store switches, kitchen board (3 s polling), 86 board, item editor, orders + refunds | Modifier-group editor, Stripe refund call, hours editor |
+| 4 Email | All mail captured in Demo inbox (receipt, ready, refund, invites, forms) | Resend sending worker |
+| 5 PWA | Manifest, icons, offline service worker | Web Push, install prompt |
+| 6 Voice | `/api/voice/*` functions, spoken-modifier parser + tests | Retell agent setup, SMS payment link, call log |
+| 7 Newsletter | Signup, compose + send (captured), sent list | Double opt-in, unsubscribe, scheduling |
+| 7b Content | Footer, legal templates, events, page/form builder, requests inbox | File upload storage, Turnstile |
+| 7c Staff | Invites, schedule builder + warnings, publish, time off, shift cover, clock + breaks, timesheets + CSV | Kiosk/PIN, texts/push, timesheet edits |
+| 7d Payroll & deposits | Deposit-link email (placeholder link), Gusto button stub | Gusto API, real Stripe payment links |
+| 8 Clone tooling | `create-restaurant` CLI (questionnaire, imports, AI menu + photos), `import-client` | Vercel deploy, demo schemas, `promote` |
+| 9 Chain mode | `location_id` on orders/hours | Everything else |
+
 ## Phase 0 — Foundations (2–3 days)
 - [ ] Next.js + TypeScript + Tailwind + shadcn/ui scaffold, ESLint/Prettier, Vitest, Playwright
 - [ ] `restaurant.config.ts` loader with Zod validation; theme tokens → CSS variables

@@ -28,7 +28,7 @@ customers; employees and the kitchen always use email + password.
 ## Test accounts (one per account type)
 
 Every site is seeded with four test accounts so we can sign in as each role and try every feature.
-The password is the shared test password in `seed/test-accounts.ts`.
+The password is the shared test password in `src/db/test-accounts.ts`.
 
 | Email | Account type | Lands on |
 |---|---|---|
@@ -104,8 +104,9 @@ of their roles.
 
 ## How it's enforced
 
-- `memberships (user_id, role, location_id?)` with roles `owner | manager | staff`;
-  kitchen devices live in `devices`; webmaster comes from env.
+- v1 (built): `user.role` is one of `admin | manager | employee | kitchen | customer`; webmaster
+  comes from `WEBMASTER_EMAILS`. Chain mode moves this to `memberships (user_id, role, location_id?)`
+  and adds `devices` for paired kitchen tablets.
 - Every server action calls `requireRole([...], locationId)`. The UI hides what you can't use,
   but the server check is the real gate.
 - Routes: `/admin/*` (owner, manager, webmaster), `/kitchen` (kitchen device, plus anyone with
