@@ -41,9 +41,13 @@ export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
   const prevSettings = (prev?.settings ?? {}) as { shortName?: string; domain?: string };
   const users = await db.select().from(s.user).where(eq(s.user.isTestAccount, true));
   const oldDomain = prevSettings.domain ?? users[0]?.email.split("@")[1];
-  const oldNames = [prev?.name, prevSettings.shortName ?? shortNameOf(prev?.name ?? "")].filter((x): x is string => !!x && x.length > 2);
   const newShort: string = intake.shortName ?? shortNameOf(intake.name);
-  const rename = (text: string) => oldNames.reduce((t, n) => t.split(n).join(n === prev?.name ? intake.name : newShort), text);
+  // the previous business's names, plus the template's sample restaurant (its pages say "Play at The Hood")
+  const fullNames = [prev?.name, "The Hood Bar & Pizza"].filter((x): x is string => !!x && x !== intake.name);
+  const oldNames = [...fullNames, prevSettings.shortName ?? shortNameOf(prev?.name ?? ""), "The Hood"]
+    .filter((x, i, a): x is string => !!x && x.length > 2 && x !== intake.name && x !== newShort && a.indexOf(x) === i)
+    .sort((a, b) => b.length - a.length); // longest first, so "The Hood Bar & Pizza" isn't half-replaced by "The Hood"
+  const rename = (text: string) => oldNames.reduce((t, n) => t.split(n).join(fullNames.includes(n) ? intake.name : newShort), text);
 
   // a new business starts from its own business-theme.ts, so drop the old one's admin changes and
   // uploads, and the old one's events (the owner adds their own in Admin → Events)
