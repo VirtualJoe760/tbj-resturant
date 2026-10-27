@@ -23,5 +23,6 @@ export const restaurant: RestaurantConfig = {
     { label: "Facebook", url: "https://facebook.com" },
   ],
   links: { yelp: "https://www.yelp.com/biz/the-hood-bar-and-pizza-palm-desert" },
+  delivery: { enabled: true, provider: "doordash", customerFee: "quote", minOrderCents: 1500 },
   app: { androidPackage: "com.thehoodpalmdesert.app" },
 };

@@ -5,7 +5,8 @@
 //   create-tbj-restaurant new [--answers a.json] questionnaire (or answers file for scripted runs)
 //   create-tbj-restaurant list                  intakes on this machine
 //   create-tbj-restaurant switch [--google "John's Diner, Indio, CA" | --yelp <url> | --website <url>]
-//                                [--logo f.png] [--icon f.png] [--photos a.jpg,b.jpg] [--deploy]
+//                                [--logo f.png] [--icon f.png] [--photos a.jpg,b.jpg]
+//                                [--delivery doordash|uber|none] [--delivery-fee quote|2.99] [--delivery-min 15] [--deploy]
 //                                               point this repo's demo site at a different business
 //   create-tbj-restaurant store [--url https://…] Play Store + App Store kit in ./store
 import fs from "node:fs";
@@ -22,7 +23,7 @@ import { applyToApp, domainFor, findAppRoot, timezoneFor } from "./apply.ts";
 import { checkImage, collectBrandFiles, FONT_CHOICES, pickBanners } from "./theme.ts";
 import { guessMenuTimes, parseRange, PRESETS } from "./menu-times.ts";
 import { packageIdFor, writeStoreKit } from "./store.ts";
-import type { Intake, Menu, MenuTime, Photo } from "./types.ts";
+import type { DeliverySettings, Intake, Menu, MenuTime, Photo } from "./types.ts";
 
 const ROOT = process.env.CR_OUT ?? path.resolve(process.cwd(), "clients");
 const cancel = <T>(v: T | symbol): T => {
@@ -69,6 +70,10 @@ interface Answers {
   bodyFont?: string;
   menuTimes?: MenuTime[];
   androidPackage?: string;
+  // delivery: "doordash" | "uber" | "none"; fee "quote" or dollars; minimum in dollars
+  delivery?: string;
+  deliveryFee?: string;
+  deliveryMin?: string;
 }
 
 interface SwitchOptions {
@@ -256,6 +261,26 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   };
   intake.app = { androidPackage: scripted?.androidPackage ?? packageIdFor(domainFor(intake)) };
 
+  // 6c. Delivery: our site takes the order, DoorDash Drive or Uber Direct sends the driver
+  const deliveryChoice = await ask<string>("delivery", () => p.select({
+    message: "Offer delivery? (orders stay on their site; a DoorDash or Uber driver brings it, no 30% app commission)",
+    options: [
+      { value: "doordash", label: "Yes, DoorDash drivers", hint: "DoorDash Drive" },
+      { value: "uber", label: "Yes, Uber drivers", hint: "Uber Direct" },
+      { value: "none", label: "No, pickup only" },
+    ],
+    initialValue: "doordash",
+  }));
+  if (deliveryChoice && deliveryChoice !== "none") {
+    const fee = await ask<string>("deliveryFee", () => p.text({ message: "Delivery fee the customer pays? (\"quote\" = the driver's price, or a flat amount like 2.99)", initialValue: "quote", validate: (v) => (v === "quote" || /^\d+(\.\d{1,2})?$/.test(v ?? "") ? undefined : "\"quote\" or an amount like 2.99") }));
+    const min = await ask<string>("deliveryMin", () => p.text({ message: "Minimum order for delivery ($)?", initialValue: "15", validate: (v) => (/^\d+(\.\d{1,2})?$/.test(v ?? "") ? undefined : "An amount like 15") }));
+    intake.delivery = {
+      enabled: true, provider: deliveryChoice as DeliverySettings["provider"],
+      customerFee: !fee || fee === "quote" ? "quote" : Math.round(Number(fee) * 100),
+      minOrderCents: Math.round(Number(min ?? 15) * 100),
+    };
+  }
+
   // 7. Features
   intake.features = scripted?.features ?? Object.fromEntries(((cancel(await p.multiselect({
     message: "Demo features",
@@ -271,6 +296,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     `Photos    ${intake.photos.length} (${intake.photos.filter((x) => !x.owned).length} from listings: demo only, credited)`,
     `Times     ${intake.menuTimes?.length ? intake.menuTimes.map((t) => `${t.name} ${t.startsAt}–${t.endsAt} (${t.sections.join(", ")})`).join("; ") : "all sections whenever open"}`,
     `Look      logo ${intake.branding.logoFile ? "yes" : "none"} · icon ${intake.branding.iconFile ? "yes" : "letter"} · ${intake.branding.bannerFiles?.length ?? 0} own + ${listingBanners.length} listing photos · fonts ${intake.branding.fonts?.heading}/${intake.branding.fonts?.body} · ${intake.branding.colors?.accent}`,
+    `Delivery  ${intake.delivery ? `${intake.delivery.provider === "uber" ? "Uber" : "DoorDash"} drivers · customer pays ${intake.delivery.customerFee === "quote" ? "the quoted fee" : `$${(intake.delivery.customerFee / 100).toFixed(2)}`} · $${intake.delivery.minOrderCents / 100} minimum` : "pickup only"}`,
     `App id    ${intake.app.androidPackage}`,
     ...(guesses.length ? ["", "Check with the owner:", ...guesses.map((g) => `  • ${g}`)] : []),
   ].join("\n"), "Review");
@@ -358,6 +384,7 @@ else if (cmd === "switch") {
       address: flag("address"), phone: flag("phone"), email: flag("email"),
       logo: flag("logo"), icon: flag("icon"), photos: flag("photos")?.split(",").map((x) => x.trim()).filter(Boolean),
       accent: flag("accent"), header: flag("header"), headingFont: flag("heading-font"), bodyFont: flag("body-font"),
+      delivery: flag("delivery") ?? "none", deliveryFee: flag("delivery-fee"), deliveryMin: flag("delivery-min"),
       features: { ordering: true, events: true, scheduling: true, newsletter: true },
     };
     if (!answers.name) {
@@ -369,4 +396,4 @@ else if (cmd === "switch") {
 }
 else if (cmd === "list") list();
 else if (cmd === "store") await store();
-else console.log("Usage: create-tbj-restaurant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--logo f] [--icon f] [--photos a,b] [--deploy] [--local] | store [--url https://…]>");
+else console.log("Usage: create-tbj-restaurant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--logo f] [--icon f] [--photos a,b] [--delivery doordash|uber|none] [--deploy] [--local] | store [--url https://…]>");

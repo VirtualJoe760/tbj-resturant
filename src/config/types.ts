@@ -1,5 +1,5 @@
 // Shape of a restaurant's settings. The values live in restaurant.ts, which
-// `create-restaurant switch` regenerates for a new business.
+// `create-tbj-restaurant switch` regenerates for a new business.
 
 export interface RestaurantConfig {
   slug: string;
@@ -15,6 +15,15 @@ export interface RestaurantConfig {
   features: { voice: boolean; newsletter: boolean; events: boolean; scheduling: boolean; payroll: false | "gusto"; deposits: boolean };
   social: { label: string; url: string }[];
   links: { yelp?: string; google?: string };
+  // Delivery through DoorDash Drive or Uber Direct (docs/17-delivery-and-order-alerts.md).
+  // Keys go in Vercel env vars; without them demo sites use a pretend driver.
+  delivery?: {
+    enabled: boolean;
+    provider: "doordash" | "uber";
+    /** What the customer pays: "quote" = the driver fee as quoted, or a flat amount in cents (the restaurant covers the rest). */
+    customerFee: "quote" | number;
+    minOrderCents: number;
+  };
   // App-store builds (docs/16-app-stores.md). Filled in once the client's store listings exist.
   app?: {
     androidPackage?: string; // e.g. "com.thehoodpalmdesert.app"

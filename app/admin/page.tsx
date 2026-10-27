@@ -1,4 +1,6 @@
 import { stripeReady } from "@/payments/provider";
+import { getDeliveryProvider } from "@/delivery/provider";
+import { restaurant } from "@/config/restaurant";
 import Link from "next/link";
 import { getUser } from "@/auth/session";
 import { STATUS_LABEL, type OrderStatus } from "@/domain/orders";
@@ -26,8 +28,10 @@ export default async function AdminHome() {
       <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
         <StoreSwitch flag="orderingPaused" label="Online ordering" value={!loc.orderingPaused} invert />
         <StoreSwitch flag="busy" label="Busy mode (+15 min pickup)" value={loc.busy} />
+        {getDeliveryProvider() && <StoreSwitch flag="deliveryPaused" label={`Delivery (${getDeliveryProvider()!.label} drivers)`} value={!loc.deliveryPaused} invert />}
         <div className="row">Payments<span style={{ color: "var(--ok)", fontSize: 13 }}>● {stripeReady() ? "Stripe connected" : process.env.STRIPE_SECRET_KEY ? "Stripe key set · add the webhook to turn it on" : "Demo checkout (no Stripe keys yet)"}</span></div>
         <div className="row">Hours<span className="muted small">{loc.hoursSummary.join(" · ")}</span></div>
+        {restaurant.delivery?.enabled && !getDeliveryProvider() && <div className="row">Delivery<span className="muted small">Add the {restaurant.delivery.provider === "uber" ? "Uber Direct" : "DoorDash Drive"} keys to turn it on</span></div>}
       </div>
 
       <div className="sec">Latest orders <Link href="/admin/orders">All →</Link></div>

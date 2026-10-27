@@ -44,6 +44,14 @@ export interface IntakeBranding {
   colors?: { accent?: string; header?: string; background?: string };
 }
 
+/** Delivery through DoorDash Drive or Uber Direct; becomes restaurant.delivery in the app. */
+export interface DeliverySettings {
+  enabled: boolean;
+  provider: "doordash" | "uber";
+  customerFee: "quote" | number; // cents when flat
+  minOrderCents: number;
+}
+
 /** Breakfast / lunch / dinner windows and the menu sections served in each. */
 export interface MenuTime { name: string; startsAt: string; endsAt: string; days?: number[]; sections: string[] }
 
@@ -63,6 +71,7 @@ export interface Intake {
   branding?: IntakeBranding;
   menuTimes?: MenuTime[];
   app?: { androidPackage?: string; iosBundleId?: string };
+  delivery?: DeliverySettings;
   cuisine?: string;
   menu?: Menu;
   photos: Photo[];

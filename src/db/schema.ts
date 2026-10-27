@@ -73,6 +73,7 @@ export const locations = pgTable("locations", {
   pickupLeadMinutes: integer("pickup_lead_minutes").notNull().default(20),
   busy: boolean("busy").notNull().default(false),
   orderingPaused: boolean("ordering_paused").notNull().default(false),
+  deliveryPaused: boolean("delivery_paused").notNull().default(false),
 });
 
 export const locationHours = pgTable("location_hours", {
@@ -179,6 +180,35 @@ export const orders = pgTable("orders", {
   notes: text("notes"),
   paymentProvider: text("payment_provider"),
   paymentRef: text("payment_ref"),
+  // delivery: the driver comes from DoorDash Drive / Uber Direct (or the demo driver)
+  fulfillment: text("fulfillment").$type<"pickup" | "delivery">().notNull().default("pickup"),
+  deliveryAddress: jsonb("delivery_address").$type<import("../domain/delivery").DeliveryAddress>(),
+  deliveryFeeCents: integer("delivery_fee_cents").notNull().default(0),
+  deliveryQuoteRef: text("delivery_quote_ref"), // settings_kv "dq:<ref>": the quote the customer accepted
+  delivery: jsonb("delivery").$type<import("../domain/delivery").DeliveryRecord>(),
+  createdAt: created(),
+});
+
+// What customers see on their dashboard and as phone notifications ("Your order is in the oven").
+export const notifications = pgTable("notifications", {
+  id: id(),
+  orderId: text("order_id").references(() => orders.id, { onDelete: "cascade" }),
+  userId: text("user_id"),
+  title: text("title").notNull(),
+  body: text("body").notNull().default(""),
+  url: text("url"),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: created(),
+});
+
+// Phones and browsers that asked for order alerts (Web Push). Guests subscribe per order.
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: text("id").primaryKey(), // hash of endpoint + owner, so re-subscribing doesn't duplicate
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userId: text("user_id"),
+  orderId: text("order_id").references(() => orders.id, { onDelete: "cascade" }),
   createdAt: created(),
 });
 

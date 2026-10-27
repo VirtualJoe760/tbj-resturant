@@ -95,6 +95,10 @@ export async function getOrder(id: string) {
 
 export async function getKitchenOrders() {
   const db = await getDb();
+  const { refreshDelivery } = await import("@/server/delivery-service");
+  const withDriver = await db.select({ id: s.orders.id }).from(s.orders)
+    .where(and(eq(s.orders.fulfillment, "delivery"), inArray(s.orders.status, ["paid", "accepted", "preparing", "ready"])));
+  await Promise.all(withDriver.map((o) => refreshDelivery(o.id)));
   const live = await db.select().from(s.orders)
     .where(inArray(s.orders.status, ["paid", "accepted", "preparing", "ready"]))
     .orderBy(asc(s.orders.createdAt));

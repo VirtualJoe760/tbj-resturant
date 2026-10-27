@@ -15,6 +15,13 @@
       "when": 1793121425930,
       "tag": "0001_branding_dayparts_photos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793123476559,
+      "tag": "0002_delivery_alerts",
+      "breakpoints": true
     }
   ]
 }

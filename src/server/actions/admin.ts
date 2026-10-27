@@ -39,11 +39,11 @@ export async function toggle86(itemId: string) {
 }
 
 // ── store status ──
-export async function setStoreFlag(flag: "busy" | "orderingPaused", value: boolean) {
+export async function setStoreFlag(flag: "busy" | "orderingPaused" | "deliveryPaused", value: boolean) {
   await requireRole(ADMIN_ROLES);
   const db = await getDb();
   await db.update(s.locations).set({ [flag]: value }).where(eq(s.locations.id, LOCATION_ID));
-  done("/admin", "/", "/menu");
+  done("/admin", "/", "/menu", "/checkout");
 }
 
 export async function refundOrder(orderId: string) {

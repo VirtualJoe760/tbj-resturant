@@ -9,7 +9,7 @@ working with Claude Code.
 |---|---|---|
 | 0 Foundations | Next.js, Drizzle schema + migrations, Neon or embedded Postgres, seed, Vitest | Vercel project, Sentry, Playwright, shadcn/ui (plain CSS used) |
 | 1 Menu & cart | Pricing/cart/hours domain + tests, menu with item builder (light/extra/halves), cart, menu times (breakfast/lunch/dinner), item photo carousel | Search, pickup-slot throttling, order-ahead for a later menu time |
-| 2 Checkout | `PaymentProvider` with demo + Stripe Checkout (connect/direct), webhook, live status page | Payment Element, promo codes, Stripe Tax; Stripe path untested without keys |
+| 2 Checkout | `PaymentProvider` with demo + Stripe Checkout (connect/direct), webhook, live status page, delivery via DoorDash Drive / Uber Direct / demo driver (doc 17), order alerts (dashboard, pop-ups, Web Push) | Payment Element, promo codes, Stripe Tax; Stripe path untested without keys |
 | 3 Admin & kitchen | Dashboard, store switches, kitchen board (3 s polling), 86 board, item editor, orders + refunds | Modifier-group editor, Stripe refund call, hours editor |
 | 4 Email | All mail captured in Demo inbox (receipt, ready, refund, invites, forms) | Resend sending worker |
 | 5 PWA & stores | Manifest (maskable icon, shortcuts), icons rendered from `business-theme.ts`, offline service worker, assetlinks / apple-app-site-association, `create-tbj-restaurant store` kit | Web Push, install prompt, Sign in with Apple, store screenshots |

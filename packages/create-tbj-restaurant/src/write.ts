@@ -14,6 +14,7 @@ export function writeClient(root: string, intake: Intake, guesses: string[]) {
     `# ${intake.name} — questions for the owner`, "",
     ...guesses.map((g) => `- [ ] ${g}`),
     `- [ ] Logo and brand colors`, `- [ ] Domain they own`, `- [ ] Stripe: existing account or set up through Connect?`,
+    ...(intake.delivery?.enabled ? [`- [ ] ${intake.delivery.provider === "uber" ? "Uber Direct" : "DoorDash Drive"} business account in their name; add its keys in Vercel (demo uses a pretend driver until then)`] : []),
     ...(intake.photos.some((p) => !p.owned) ? [`- [ ] Replace ${intake.photos.filter((p) => !p.owned).length} listing photos with photos they own before launch`] : []),
     "",
   ].join("\n"));

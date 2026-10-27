@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { KITCHEN_FLOW, type OrderStatus } from "@/domain/orders";
 import { advanceOrder } from "@/server/actions/admin";
+import { COURIER_LABEL, type DeliveryRecord } from "@/domain/delivery";
 
 interface Ticket {
   id: string;
@@ -13,6 +14,8 @@ interface Ticket {
   notes: string | null;
   pickupAt: string | null;
   createdAt: string;
+  fulfillment: "pickup" | "delivery";
+  delivery: DeliveryRecord | null;
   lines: { id: string; nameSnapshot: string; quantity: number; modifiersText: string[]; instructions: string | null }[];
 }
 
@@ -62,6 +65,11 @@ export function KitchenBoard({ initial }: { initial: Ticket[] }) {
                 <div key={t.id} className={`ticket ${flow.column}`}>
                   <div className="hd"><span>#{t.number} · {t.channel}</span><span>{time}</span></div>
                   <div>{t.customerName}{t.customerPhone ? ` · ${t.customerPhone}` : ""}</div>
+                  {t.fulfillment === "delivery" && (
+                    <div className={`drv ${t.delivery?.status === "failed" ? "bad" : ""}`}>
+                      🚗 DELIVERY · {!t.delivery ? "booking driver…" : t.delivery.status === "failed" ? `driver booking failed: call the customer` : `${COURIER_LABEL[t.delivery.status]}${t.delivery.courierName ? ` (${t.delivery.courierName})` : ""}`}
+                    </div>
+                  )}
                   {t.lines.map((l) => (
                     <div key={l.id}>
                       <div className="line-item">{l.quantity}× {l.nameSnapshot}</div>
@@ -70,7 +78,7 @@ export function KitchenBoard({ initial }: { initial: Ticket[] }) {
                     </div>
                   ))}
                   {t.notes && <div className="m" style={{ color: allergy ? "var(--bad)" : undefined, fontWeight: 800, marginTop: 6 }}>{allergy ? "⚠ " : ""}{t.notes}</div>}
-                  <button onClick={() => bump(t)}>{flow.button}</button>
+                  <button onClick={() => bump(t)}>{t.fulfillment === "delivery" && flow.next === "completed" ? "Handed to driver" : flow.button}</button>
                 </div>
               );
             })}

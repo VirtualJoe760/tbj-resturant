@@ -46,7 +46,12 @@ pnpm tbj store --url https://johnsdiner.com   # Play Store + App Store kit in ./
 The questionnaire covers the listing, menu, **menu times** (breakfast / lunch / dinner), and the
 look: **logo, app icon, home page photos, fonts and colors**, written to
 [`src/config/business-theme.ts`](src/config/business-theme.ts) with images in `public/brand/`.
-That file is the one place to plug in a restaurant's assets by hand too.
+That file is the one place to plug in a restaurant's assets by hand too. The intake also asks
+whether to offer **delivery** (DoorDash or Uber drivers, ordered from the restaurant's own site).
+
+Customers get **order alerts** when the kitchen starts and finishes their order: on their
+dashboard, as a pop-up on the site, and as a phone notification. See
+[docs/17-delivery-and-order-alerts.md](docs/17-delivery-and-order-alerts.md).
 
 See [docs/15-intake-and-demo.md](docs/15-intake-and-demo.md) and
 [docs/16-app-stores.md](docs/16-app-stores.md) (branding, menu photos, menu times, app stores).

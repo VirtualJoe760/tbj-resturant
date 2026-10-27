@@ -13,6 +13,9 @@ import { isSoldOut, LOCATION_ID, unavailableCategoryIds } from "@/server/queries
 import { sendEmail, simpleEmail } from "@/server/email";
 import { markPaid } from "@/server/order-service";
 import { restaurant } from "@/config/restaurant";
+import type { DeliveryAddress } from "@/domain/delivery";
+import { DeliveryError } from "@/delivery/provider";
+import { getStoredQuote, quoteDelivery } from "@/server/delivery-service";
 
 type Result = { ok: boolean; message: string } | null;
 
@@ -23,6 +26,27 @@ export async function subscribe(_: Result, form: FormData): Promise<Result> {
   await db.insert(s.subscribers).values({ email: email.data.toLowerCase() }).onConflictDoNothing();
   await sendEmail(db, { to: email.data, subject: `You're on the ${restaurant.shortName} list`, kind: "newsletter-welcome", html: simpleEmail("<p>Thanks for joining! Expect deals, events and new pizzas — one email a week, tops.</p>") });
   return { ok: true, message: "You're in! Check your inbox." };
+}
+
+const Address = z.object({
+  street: z.string().trim().min(3).max(120),
+  unit: z.string().trim().max(30).optional(),
+  city: z.string().trim().min(2).max(60),
+  state: z.string().trim().length(2).toUpperCase(),
+  zip: z.string().trim().regex(/^\d{5}$/),
+  instructions: z.string().trim().max(200).optional(),
+});
+
+/** Delivery price and time for checkout. The quote is kept on the server; placeOrder uses it by ref. */
+export async function getDeliveryQuote(input: { address: DeliveryAddress; subtotalCents: number; name: string; phone: string }):
+  Promise<{ ok: true; quoteRef: string; feeCents: number; etaMinutes: number; by: string } | { ok: false; error: string }> {
+  const a = Address.safeParse(input.address);
+  if (!a.success) return { ok: false, error: "Check the street, city, state (2 letters) and 5-digit ZIP." };
+  try {
+    return { ok: true, ...(await quoteDelivery({ ...input, address: a.data })) };
+  } catch (e) {
+    return { ok: false, error: e instanceof DeliveryError ? e.message : "Couldn't get a delivery price. Try again or choose pickup." };
+  }
 }
 
 const OrderInput = z.object({
@@ -41,6 +65,8 @@ const OrderInput = z.object({
   email: z.string().email().optional().or(z.literal("")),
   tipPct: z.number().min(0).max(0.5),
   notes: z.string().max(300).optional(),
+  fulfillment: z.enum(["pickup", "delivery"]).default("pickup"),
+  deliveryQuoteRef: z.string().max(80).optional(),
 });
 
 /** Re-prices the cart on the server, creates the order, and starts payment. */
@@ -69,6 +95,18 @@ export async function placeOrder(input: z.infer<typeof OrderInput>): Promise<{ o
     lines.push({ def, sel, unit, quantity: l.quantity, instructions: l.instructions });
   }
   const totals = priceCart(lines.map((l) => ({ unitCents: l.unit, quantity: l.quantity })), { taxRate: loc!.taxRate, tipPct: o.tipPct });
+
+  // delivery: the fee comes from the quote stored on the server, never from the browser
+  let delivery: { address: DeliveryAddress; feeCents: number; ref: string } | null = null;
+  if (o.fulfillment === "delivery") {
+    const q = o.deliveryQuoteRef ? await getStoredQuote(o.deliveryQuoteRef) : null;
+    if (!q) return { ok: false, error: "Get a delivery price first (enter your address)." };
+    if (new Date(q.expiresAt) < new Date()) return { ok: false, error: "That delivery price expired. Tap “Update price” and try again." };
+    if (loc?.deliveryPaused) return { ok: false, error: "Delivery just paused. Choose pickup or try again soon." };
+    if (totals.subtotal < (restaurant.delivery?.minOrderCents ?? 0)) return { ok: false, error: "Your order is under the delivery minimum." };
+    delivery = { address: q.address, feeCents: q.customerFeeCents, ref: o.deliveryQuoteRef! };
+    totals.total += q.customerFeeCents;
+  }
   const user = await getUser();
   const [{ n }] = await db.select({ n: sql<number>`coalesce(max(substring(${s.orders.number} from 2)::int), 0)::int` }).from(s.orders);
   const number = orderNumber(n + 1);
@@ -79,6 +117,7 @@ export async function placeOrder(input: z.infer<typeof OrderInput>): Promise<{ o
     subtotalCents: totals.subtotal, taxCents: totals.tax, tipCents: totals.tip, totalCents: totals.total, discountCents: totals.discount,
     customerName: o.name, customerPhone: o.phone, customerEmail: o.email || null, notes: o.notes || null,
     paymentProvider: provider.name, pickupAt: new Date(Date.now() + (loc!.pickupLeadMinutes + (loc!.busy ? 15 : 0)) * 60000),
+    ...(delivery ? { fulfillment: "delivery" as const, deliveryAddress: delivery.address, deliveryFeeCents: delivery.feeCents, deliveryQuoteRef: delivery.ref } : {}),
   }).returning();
   await db.insert(s.orderItems).values(lines.map((l) => ({
     orderId: order.id, itemId: l.def.id, nameSnapshot: l.def.name, unitPriceCents: l.unit, quantity: l.quantity,
