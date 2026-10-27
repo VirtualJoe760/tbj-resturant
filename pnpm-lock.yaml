@@ -96,6 +96,10 @@ importers:
       zod:
         specifier: 3.25.76
         version: 3.25.76
+    devDependencies:
+      esbuild:
+        specifier: 0.25.12
+        version: 0.25.12
 
 packages:
 

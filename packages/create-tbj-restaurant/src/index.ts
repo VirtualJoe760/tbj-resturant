@@ -1,6 +1,7 @@
-// create-tbj-restaurant: questionnaire → client files (menu, menu times, logo, app icon, photos,
-// fonts, colors) → this repo's site → (optional) demo deploy → app-store kit.
+// create-tbj-resturant: questionnaire → client files (menu, menu times, logo, app icon, photos,
+// fonts, colors, delivery) → a restaurant app → (optional) demo deploy → app-store kit.
 // Usage:
+//   npx create-tbj-resturant [folder] [flags]   a NEW restaurant app in ./folder (same flags as switch)
 //   create-tbj-restaurant login                 store our API keys (hidden prompts)
 //   create-tbj-restaurant new [--answers a.json] questionnaire (or answers file for scripted runs)
 //   create-tbj-restaurant list                  intakes on this machine
@@ -11,6 +12,7 @@
 //   create-tbj-restaurant store [--url https://…] Play Store + App Store kit in ./store
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import * as p from "@clack/prompts";
 import { getKey, KEYS, keyStatus, saveKeys, type KeyName } from "./credentials.ts";
 import { searchPlaces, type GooglePlace } from "./sources/google.ts";
@@ -24,6 +26,7 @@ import { checkImage, collectBrandFiles, FONT_CHOICES, pickBanners } from "./them
 import { guessMenuTimes, parseRange, PRESETS } from "./menu-times.ts";
 import { packageIdFor, writeStoreKit } from "./store.ts";
 import type { DeliverySettings, Intake, Menu, MenuTime, Photo } from "./types.ts";
+import { copyTemplate, finishProject, folderName, nextSteps, TEMPLATE } from "./create.ts";
 
 const ROOT = process.env.CR_OUT ?? path.resolve(process.cwd(), "clients");
 const cancel = <T>(v: T | symbol): T => {
@@ -80,13 +83,14 @@ interface SwitchOptions {
   root: string;
   deploy: boolean;
   local: boolean;
+  creating?: boolean; // a brand-new app: no deploy question, caller prints the next steps
 }
 
 async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions) {
   const ask = async <T>(key: keyof Answers, q: () => Promise<T | symbol>): Promise<T> => (scripted ? (scripted[key] as T) : cancel(await q()));
   for (const k of ["ANTHROPIC_API_KEY"] as KeyName[]) if (!process.env[k] && getKey(k)) process.env[k] = getKey(k);
 
-  p.intro(switching ? "Switch the demo site to a new business" : "New restaurant demo");
+  if (!switching?.creating) p.intro(switching ? "Switch the demo site to a new business" : "New restaurant demo");
   const name = await ask<string>("name", () => p.text({ message: "Restaurant name?", validate: (v) => (v ? undefined : "Required") }));
   const city = await ask<string>("city", () => p.text({ message: "City?", placeholder: "Palm Desert, CA" }));
   const intake: Intake = { slug: slugify(name), name, city, timezone: "America/Los_Angeles", links: {}, photos: [], features: {}, sources: { name: "manual" }, createdAt: new Date().toISOString() };
@@ -305,7 +309,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   const dir = writeClient(clientsDir, intake, guesses);
   if (!switching) return p.outro(`Wrote ${path.relative(process.cwd(), dir)}. Next, inside the app repo: \`create-tbj-restaurant switch --answers\` or \`pnpm import-client ${intake.slug}\`.`);
 
-  const deploy = switching.deploy || (!scripted && cancel(await p.confirm({ message: "Push it so the Vercel preview site switches too?" })) === true);
+  const deploy = !switching.creating && (switching.deploy || (!scripted && cancel(await p.confirm({ message: "Push it so the Vercel preview site switches too?" })) === true));
   try {
     // The live preview's database is updated during the Vercel build (scripts/setup-db.ts),
     // so no database password is needed here. --local also loads the local dev database.
@@ -315,6 +319,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     p.log.error((e as Error).message);
     process.exit(1);
   }
+  if (switching.creating) return intake;
   p.outro(deploy ? `The preview site will show ${intake.name} in about 2 minutes.` : `Local config now points at ${intake.name}. Run with --deploy to update the preview site.`);
 }
 
@@ -325,9 +330,14 @@ async function store() {
     console.error("Run this inside the restaurant app repo.");
     process.exit(1);
   }
-  const { pathToFileURL } = await import("node:url");
-  const { restaurant } = await import(pathToFileURL(path.join(root, "src", "config", "restaurant.ts")).href);
-  const { businessTheme } = await import(pathToFileURL(path.join(root, "src", "config", "business-theme.ts")).href);
+  // the app's config is TypeScript: read it with the app's own tsx
+  const code = `Promise.all([import("./src/config/restaurant.ts"), import("./src/config/business-theme.ts")]).then(([a, b]) => console.log(JSON.stringify({ restaurant: a.restaurant, businessTheme: b.businessTheme })))`;
+  const out = spawnSync("pnpm", ["exec", "tsx", "-e", code], { cwd: root, encoding: "utf8", shell: process.platform === "win32" });
+  if (out.status !== 0) {
+    console.error("Couldn't read the app's config. Run `pnpm install` in the app first.");
+    process.exit(1);
+  }
+  const { restaurant, businessTheme } = JSON.parse(out.stdout.trim().split("\n").pop()!);
   const url = (flag("url") ?? `https://${restaurant.domain}`).replace(/\/$/, "");
   const androidPackage = restaurant.app?.androidPackage ?? packageIdFor(restaurant.domain);
   const dir = path.join(root, "store");
@@ -349,7 +359,9 @@ function list() {
   }
 }
 
-const [cmd, ...rest] = process.argv.slice(2);
+const [cmd, ...rest0] = process.argv.slice(2);
+// `npx create-tbj-resturant --google "…"`: the first word is a flag, not a folder or command
+const rest = cmd?.startsWith("--") ? [cmd, ...rest0] : rest0;
 const answersIdx = rest.indexOf("--answers");
 const flag = (name: string) => {
   const i = rest.indexOf(`--${name}`);
@@ -357,15 +369,8 @@ const flag = (name: string) => {
 };
 const readAnswers = (): Answers | null => (answersIdx >= 0 ? JSON.parse(fs.readFileSync(rest[answersIdx + 1], "utf8")) : null);
 
-if (cmd === "login") await login();
-else if (cmd === "new") await newRestaurant(readAnswers());
-else if (cmd === "switch") {
-  const root = findAppRoot();
-  if (!root) {
-    console.error("Run this inside the restaurant app repo (the folder with src/config/restaurant.ts).");
-    process.exit(1);
-  }
-  // Flags pre-answer the questionnaire; anything missing is asked interactively.
+/** Flags pre-answer the questionnaire; anything missing is asked interactively. */
+function flagAnswers(): Answers | null {
   let answers = readAnswers();
   const google = flag("google");
   const yelp = flag("yelp");
@@ -392,8 +397,42 @@ else if (cmd === "switch") {
       process.exit(1);
     }
   }
-  await newRestaurant(answers, { root, deploy: rest.includes("--deploy"), local: rest.includes("--local") });
+  return answers;
+}
+
+/** npx create-tbj-resturant [folder]: a new app from the template, set up for one restaurant. */
+async function createApp(folderArg?: string) {
+  p.intro("New TBJ restaurant app");
+  const answers = flagAnswers();
+  const folder = folderArg ?? (answers?.name ? folderName(answers.name) : String(cancel(await p.text({
+    message: "Folder for the new app?", placeholder: "johns-diner", validate: (v) => (v && /^[\w.-]+$/.test(v) ? undefined : "Letters, numbers and dashes"),
+  }))));
+  const dir = path.resolve(folder);
+  try {
+    copyTemplate(dir, flag("template") ?? TEMPLATE);
+  } catch (e) {
+    p.cancel((e as Error).message);
+    process.exit(1);
+  }
+  const intake = await newRestaurant(answers, { root: dir, deploy: false, local: true, creating: true });
+  if (!intake) return;
+  const repo = await finishProject(dir, intake.name, folderName(intake.name), !answers);
+  p.note(nextSteps(dir, repo), "Next");
+  p.outro(`${intake.name} is ready in ${path.relative(process.cwd(), dir) || "."}`);
+}
+
+const COMMANDS = ["login", "new", "switch", "list", "store", "help", "--help"];
+if (cmd === "login") await login();
+else if (cmd === "new") await newRestaurant(readAnswers());
+else if (cmd === "switch") {
+  const root = findAppRoot();
+  if (!root) {
+    console.error("Run this inside the restaurant app repo (the folder with src/config/restaurant.ts).");
+    process.exit(1);
+  }
+  await newRestaurant(flagAnswers(), { root, deploy: rest.includes("--deploy"), local: rest.includes("--local") });
 }
 else if (cmd === "list") list();
 else if (cmd === "store") await store();
-else console.log("Usage: create-tbj-restaurant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--logo f] [--icon f] [--photos a,b] [--delivery doordash|uber|none] [--deploy] [--local] | store [--url https://…]>");
+else if (!COMMANDS.includes(cmd ?? "help") || cmd === undefined) await createApp(cmd?.startsWith("--") ? undefined : cmd);
+else console.log("Usage: npx create-tbj-resturant [folder] [--google \"Name, City\" …]  |  create-tbj-resturant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--logo f] [--icon f] [--photos a,b] [--delivery doordash|uber|none] [--deploy] [--local] | store [--url https://…]>");

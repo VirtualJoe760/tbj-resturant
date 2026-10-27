@@ -35,7 +35,7 @@ The shared test password is in [src/db/test-accounts.ts](src/db/test-accounts.ts
 
 ## New restaurant
 
-The CLI is `create-tbj-restaurant` (`pnpm tbj` inside this repo).
+Start a new restaurant app from any folder with `npx create-tbj-resturant` (or `pnpm tbj …` inside this repo).
 
 ```bash
 pnpm tbj login      # once: Google Places / Yelp / Anthropic keys (hidden prompts)
