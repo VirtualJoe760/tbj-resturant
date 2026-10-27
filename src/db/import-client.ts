@@ -45,8 +45,10 @@ export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
   const newShort: string = intake.shortName ?? shortNameOf(intake.name);
   const rename = (text: string) => oldNames.reduce((t, n) => t.split(n).join(n === prev?.name ? intake.name : newShort), text);
 
-  // a new business starts from its own business-theme.ts, so drop the old one's admin changes and uploads
+  // a new business starts from its own business-theme.ts, so drop the old one's admin changes and
+  // uploads, and the old one's events (the owner adds their own in Admin → Events)
   await db.delete(s.media);
+  if ((prev?.settings as { slug?: string } | undefined)?.slug !== intake.slug) await db.delete(s.events);
   await db.update(s.brand).set({ name: intake.name, settings: { theme: intake.theme ?? null, links: intake.links, slug: intake.slug, shortName: newShort, domain: intake.domain ?? oldDomain } }).where(eq(s.brand.id, "brand"));
   for (const pg of await db.select().from(s.pages))
     await db.update(s.pages).set({ title: rename(pg.title), subtitle: rename(pg.subtitle), bodyHtml: rename(pg.bodyHtml), updatedAt: new Date() }).where(eq(s.pages.id, pg.id));
