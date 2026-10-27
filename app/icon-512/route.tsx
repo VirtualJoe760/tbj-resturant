@@ -1,14 +1,4 @@
-import { ImageResponse } from "next/og";
-import { restaurant } from "@/config/restaurant";
+import { appIcon } from "@/server/app-icon";
 
-// App icon generated from brand colors until the client's logo is added to /brand.
-export function GET() {
-  return new ImageResponse(
-    (
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: restaurant.theme.header, color: restaurant.theme.primary, fontSize: 512 * 0.42, fontWeight: 900 }}>
-        {restaurant.shortName.replace(/^The\s+/i, "").slice(0, 1)}
-      </div>
-    ),
-    { width: 512, height: 512 },
-  );
-}
+export const dynamic = "force-dynamic";
+export const GET = () => appIcon(512);

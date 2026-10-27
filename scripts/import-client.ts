@@ -12,6 +12,6 @@ if (!slug) {
 (async () => {
   await ready();
   const r = await importClient(db, path.resolve(process.env.CR_OUT ?? "clients", slug));
-  console.log(`Imported ${slug}: ${r.items} menu items. Update src/config/restaurant.ts (name, domain, colors) to match.`);
+  console.log(`Imported ${slug}: ${r.items} menu items. \`pnpm tbj switch\` also writes src/config/restaurant.ts and business-theme.ts to match.`);
   process.exit(0);
 })();

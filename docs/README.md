@@ -20,7 +20,8 @@ voice ordering with Retell, an owner dashboard, email receipts, and a newsletter
 | [12-staff-scheduling](12-staff-scheduling.md) | Staff accounts, schedule builder, availability, time off, clock in/out, timesheets |
 | [13-accounts-roles](13-accounts-roles.md) | Webmaster, owner, manager, kitchen tablet, employee and customer accounts; who can do what |
 | [14-payroll-deposits](14-payroll-deposits.md) | Optional: Gusto payroll (direct deposit for staff) and bank-transfer deposits for events and catering |
-| [15-intake-and-demo](15-intake-and-demo.md) | `create-restaurant` CLI: questionnaire (Google, Yelp, website or manual intake), free demo sites for pitching, promote to live |
+| [15-intake-and-demo](15-intake-and-demo.md) | `create-tbj-restaurant` CLI: questionnaire (Google, Yelp, website or manual intake), free demo sites for pitching, promote to live |
+| [16-app-stores](16-app-stores.md) | `business-theme.ts` (logo, app icon, banners, fonts, colors), Admin → Branding, menu item photos, menu times, Play Store and App Store |
 | [clients/the-hood](clients/the-hood.md) | Client #1 profile, draft menu, open questions |
 | [mock-ui/index.html](mock-ui/index.html) | Clickable mobile mock of customer + admin screens |
 

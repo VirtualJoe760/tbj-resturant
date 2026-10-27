@@ -51,7 +51,7 @@ withholding and filings. Stripe is only used to collect money (orders, deposits)
 **Why:** Paying wages through Stripe would skip withholding and filings that California requires.
 
 ### D9 — Every client starts as a free demo; demos share one database (2026-10-27)
-**Decision:** A private `create-restaurant` CLI builds a demo from a questionnaire (Google
+**Decision:** A private `create-tbj-restaurant` CLI builds a demo from a questionnaire (Google
 listing, Yelp, website, or manual intake). Demos run the real app with `APP_MODE=demo`: one
 shared Neon project with a schema per prospect, Stripe test mode, emails captured on-site.
 Demos are projects on our existing Vercel Pro account.

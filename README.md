@@ -35,13 +35,21 @@ The shared test password is in [src/db/test-accounts.ts](src/db/test-accounts.ts
 
 ## New restaurant
 
+The CLI is `create-tbj-restaurant` (`pnpm tbj` inside this repo).
+
 ```bash
-pnpm create-restaurant login      # once: Google Places / Yelp / Anthropic keys (hidden prompts)
-pnpm create-restaurant new        # questionnaire → clients/<slug>/
-pnpm import-client <slug>         # load it into the database (stop pnpm dev first when using the local DB)
+pnpm tbj login      # once: Google Places / Yelp / Anthropic keys (hidden prompts)
+pnpm tbj switch --google "John's Diner, Indio, CA" --logo logo.png --icon icon.png --deploy
+pnpm tbj store --url https://johnsdiner.com   # Play Store + App Store kit in ./store
 ```
 
-See [docs/15-intake-and-demo.md](docs/15-intake-and-demo.md).
+The questionnaire covers the listing, menu, **menu times** (breakfast / lunch / dinner), and the
+look: **logo, app icon, home page photos, fonts and colors**, written to
+[`src/config/business-theme.ts`](src/config/business-theme.ts) with images in `public/brand/`.
+That file is the one place to plug in a restaurant's assets by hand too.
+
+See [docs/15-intake-and-demo.md](docs/15-intake-and-demo.md) and
+[docs/16-app-stores.md](docs/16-app-stores.md) (branding, menu photos, menu times, app stores).
 
 ## Scripts
 

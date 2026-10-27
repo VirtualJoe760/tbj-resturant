@@ -7,6 +7,7 @@ export interface MenuItemView {
   description: string;
   emoji: string;
   imageUrl: string | null;
+  images: string[]; // photo carousel; first is the thumbnail
   tags: string[];
   basePriceCents: number;
   orderableOnline: boolean;
@@ -19,5 +20,8 @@ export interface MenuCategory {
   name: string;
   sort: number;
   isVisible: boolean;
+  /** false outside its menu times (breakfast only, etc.) */
+  availableNow: boolean;
+  availability: string | null;
   items: MenuItemView[];
 }

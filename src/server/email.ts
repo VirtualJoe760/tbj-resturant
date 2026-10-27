@@ -2,6 +2,7 @@ import "server-only";
 import type { Db } from "@/db/client";
 import { schema as s } from "@/db/client";
 import { isDemo, restaurant } from "@/config/restaurant";
+import { businessTheme } from "@/config/business-theme";
 import { money } from "@/domain/pricing";
 
 // Every email goes through here. Demo: captured in the Demo inbox (/demo/inbox).
@@ -12,7 +13,7 @@ export async function sendEmail(db: Db, mail: { to: string; subject: string; htm
 
 const wrap = (body: string) =>
   `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:auto;border:1px solid #e7e5e4;border-radius:14px;overflow:hidden">
-  <div style="background:${restaurant.theme.header};color:#fff;padding:16px 18px;font-weight:800">${restaurant.name}</div>
+  <div style="background:${businessTheme.colors.header};color:#fff;padding:16px 18px;font-weight:800">${restaurant.name}</div>
   <div style="padding:16px 18px;font-size:14px;line-height:1.5">${body}</div>
   <div style="padding:12px 18px;font-size:11px;color:#78716c;border-top:1px solid #e7e5e4">${restaurant.address}</div></div>`;
 

@@ -2,8 +2,8 @@
 
 How to launch a new restaurant from the template. Target: < 1 hour of operator time.
 
-Every client starts as a free **demo** built by `create-restaurant new` and goes live with
-`create-restaurant promote`. The questionnaire, demo mode and pitch flow are in
+Every client starts as a free **demo** built by `create-tbj-restaurant new` and goes live with
+`create-tbj-restaurant promote`. The questionnaire, demo mode and pitch flow are in
 [15-intake-and-demo](15-intake-and-demo.md). The steps below are what `promote` runs.
 
 ## What's per-client vs shared
@@ -21,10 +21,10 @@ Keeping this boundary is what makes `git pull upstream main` painless.
 ## Steps
 
 ```bash
-npx @ourco/create-restaurant promote tonys-pizza
+npx create-tbj-restaurant promote tonys-pizza
 ```
 
-The CLI (`packages/create-restaurant`) walks through:
+The CLI (`packages/create-tbj-restaurant`) walks through:
 
 1. **Repo** — creates `tonys-pizza` from the template on GitHub, adds `upstream` remote.
 2. **Config** — written from the demo data (name, timezone, address, phone, colors) into `restaurant.config.ts`.

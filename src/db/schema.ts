@@ -89,6 +89,18 @@ export const categories = pgTable("categories", {
   name: text("name").notNull(),
   sort: integer("sort").notNull().default(0),
   isVisible: boolean("is_visible").notNull().default(true),
+  // menu times this category is served in (breakfast, lunch…); empty = whenever the store is open
+  daypartIds: text("daypart_ids").array().notNull().default([]),
+});
+
+// Breakfast / lunch / dinner windows. endsAt <= startsAt runs past midnight (late night).
+export const dayparts = pgTable("dayparts", {
+  id: id(),
+  name: text("name").notNull(),
+  startsAt: text("starts_at").notNull(),
+  endsAt: text("ends_at").notNull(),
+  days: integer("days").array().notNull().default([0, 1, 2, 3, 4, 5, 6]),
+  sort: integer("sort").notNull().default(0),
 });
 
 export const items = pgTable("items", {
@@ -98,6 +110,8 @@ export const items = pgTable("items", {
   description: text("description").notNull().default(""),
   emoji: text("emoji").notNull().default("🍽️"),
   imageUrl: text("image_url"),
+  // photo carousel on the menu, first one is the thumbnail ("/media/<id>" uploads or https links)
+  images: text("images").array().notNull().default([]),
   basePriceCents: integer("base_price_cents").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   orderableOnline: boolean("orderable_online").notNull().default(true),
@@ -337,6 +351,17 @@ export const timeEntries = pgTable("time_entries", {
   method: text("method").notNull().default("app"),
   locationVerified: boolean("location_verified").notNull().default(false),
   approvedAt: timestamp("approved_at"),
+});
+
+// Uploaded logos, app icons and banners, served from /media/<id>. Small images only (resized in
+// the browser before upload), so they live in the database and every clone needs no file storage.
+export const media = pgTable("media", {
+  id: id(),
+  mime: text("mime").notNull(),
+  data: text("data").notNull(), // base64
+  width: integer("width"),
+  height: integer("height"),
+  createdAt: created(),
 });
 
 export const settingsKv = pgTable("settings_kv", {

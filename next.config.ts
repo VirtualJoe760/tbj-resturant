@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   // lets admin.localhost / kitchen.localhost / … each keep their own sign-in during demos
   allowedDevOrigins: ["*.localhost"],
   // migrations and client intakes are read from disk at runtime
-  outputFileTracingIncludes: { "/**": ["./drizzle/**/*", "./clients/**/*"] },
+  outputFileTracingIncludes: { "/**": ["./drizzle/**/*", "./clients/**/*", "./public/brand/**/*"] },
 };
 
 export default nextConfig;

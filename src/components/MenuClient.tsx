@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { cart, useCart } from "@/components/cart-store";
 import { toast } from "@/components/Toast";
 import { describeSelections, validateSelections } from "@/domain/cart";
@@ -8,8 +8,8 @@ import { defaultSelections, money, priceLine, type GroupDef, type Selections } f
 import type { MenuCategory, MenuItemView } from "@/domain/menu-view";
 
 export function MenuClient({ menu, openItem }: { menu: MenuCategory[]; openItem?: string }) {
-  const all = menu.flatMap((c) => c.items);
-  const [cur, setCur] = useState<MenuItemView | null>(() => all.find((i) => i.id === openItem && !i.soldOut && i.orderableOnline) ?? null);
+  const all = menu.flatMap((c) => c.items.map((i) => ({ ...i, off: !c.availableNow })));
+  const [cur, setCur] = useState<MenuItemView | null>(() => all.find((i) => i.id === openItem && !i.soldOut && i.orderableOnline && !i.off) ?? null);
   const lines = useCart();
   const count = lines.reduce((a, l) => a + l.quantity, 0);
   const total = lines.reduce((a, l) => a + l.unitCents * l.quantity, 0);
@@ -21,13 +21,14 @@ export function MenuClient({ menu, openItem }: { menu: MenuCategory[]; openItem?
       </nav>
       {menu.map((c) => (
         <section key={c.id} id={`cat-${c.id}`} style={{ scrollMarginTop: 56 }}>
-          <div className="sec">{c.name}</div>
+          <div className="sec">{c.name}{c.availability && <span className="daypart-tag">{c.availableNow ? c.availability : `Not now · ${c.availability}`}</span>}</div>
           <div className="menu-grid">
             {c.items.map((i) => {
-              const off = i.soldOut || !i.orderableOnline;
+              const off = i.soldOut || !i.orderableOnline || !c.availableNow;
               return (
                 <button key={i.id} className={`item ${i.soldOut ? "sold" : ""}`} disabled={off} onClick={() => setCur(i)}>
-                  <div className="em">{i.emoji}</div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {i.images[0] ? <img className="thumb" src={i.images[0]} alt="" loading="lazy" /> : <div className="em">{i.emoji}</div>}
                   <div className="grow">
                     <b>{i.name}</b>
                     <div className="mods">{i.description}</div>
@@ -86,6 +87,7 @@ function ItemSheet({ item, onClose }: { item: MenuItemView; onClose: () => void 
     <>
       <div className="sheet-bg" onClick={onClose} />
       <div className="sheet" role="dialog" aria-label={def.name}>
+        {item.images.length > 0 && <Carousel images={item.images} name={def.name} />}
         <div className="head">
           <div>
             <div style={{ fontSize: 13 }}>{item.emoji} {item.tags.join(" · ")}</div>
@@ -144,6 +146,28 @@ function ItemSheet({ item, onClose }: { item: MenuItemView; onClose: () => void 
         </div>
       </div>
     </>
+  );
+}
+
+/** Swipeable photos (arrows on computers), one per screen width. */
+function Carousel({ images, name }: { images: string[]; name: string }) {
+  const track = useRef<HTMLDivElement>(null);
+  const [at, setAt] = useState(0);
+  const go = (i: number) => track.current?.scrollTo({ left: i * track.current.clientWidth, behavior: "smooth" });
+  return (
+    <div className="carousel">
+      <div className="track" ref={track} onScroll={(e) => setAt(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {images.map((u, i) => <img key={u} src={u} alt={`${name} photo ${i + 1}`} loading={i ? "lazy" : "eager"} />)}
+      </div>
+      {images.length > 1 && (
+        <>
+          {at > 0 && <button type="button" className="nav prev" onClick={() => go(at - 1)} aria-label="Previous photo">‹</button>}
+          {at < images.length - 1 && <button type="button" className="nav next" onClick={() => go(at + 1)} aria-label="Next photo">›</button>}
+          <div className="dots">{images.map((u, i) => <button key={u} type="button" className={i === at ? "on" : ""} onClick={() => go(i)} aria-label={`Photo ${i + 1}`} />)}</div>
+        </>
+      )}
+    </div>
   );
 }
 

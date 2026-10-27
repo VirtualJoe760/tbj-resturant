@@ -9,7 +9,7 @@ import { priceCart, priceLine, type Selections } from "@/domain/pricing";
 import { orderNumber } from "@/domain/orders";
 import { getPaymentProvider } from "@/payments/provider";
 import { getUser } from "@/auth/session";
-import { isSoldOut, LOCATION_ID } from "@/server/queries";
+import { isSoldOut, LOCATION_ID, unavailableCategoryIds } from "@/server/queries";
 import { sendEmail, simpleEmail } from "@/server/email";
 import { markPaid } from "@/server/order-service";
 import { restaurant } from "@/config/restaurant";
@@ -53,6 +53,7 @@ export async function placeOrder(input: z.infer<typeof OrderInput>): Promise<{ o
   if (loc?.orderingPaused) return { ok: false, error: "Online ordering is paused right now. Please call us." };
   const defs = await loadItemDefs(db);
   const itemRows = await db.select().from(s.items);
+  const offMenu = await unavailableCategoryIds();
 
   const lines = [];
   for (const l of o.lines) {
@@ -60,6 +61,7 @@ export async function placeOrder(input: z.infer<typeof OrderInput>): Promise<{ o
     const row = itemRows.find((r) => r.id === l.itemId);
     if (!def || !row || !row.isActive || !row.orderableOnline) return { ok: false, error: "An item in your cart isn't available online." };
     if (isSoldOut(row)) return { ok: false, error: `${row.name} just sold out — remove it to continue.` };
+    if (offMenu.includes(row.categoryId)) return { ok: false, error: `${row.name} isn't being served right now — remove it to continue.` };
     const sel = l.selections as Selections;
     const v = validateSelections(def, sel);
     if (!v.ok) return { ok: false, error: `${def.name}: ${v.errors[0]}` };

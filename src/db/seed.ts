@@ -138,7 +138,7 @@ export async function seedIfEmpty(db: Db) {
   const [{ n }] = await db.select({ n: count() }).from(s.brand);
   if (n > 0) return;
 
-  await db.insert(s.brand).values({ id: "brand", name: restaurant.name, settings: { theme: restaurant.theme, shortName: restaurant.shortName, domain: restaurant.domain, slug: restaurant.slug } });
+  await db.insert(s.brand).values({ id: "brand", name: restaurant.name, settings: { shortName: restaurant.shortName, domain: restaurant.domain, slug: restaurant.slug } });
   await db.insert(s.locations).values({ id: LOC, name: "Hwy 111", address: restaurant.address, phone: restaurant.phone, timezone: restaurant.timezone, ...restaurant.location });
   await db.insert(s.locationHours).values([0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ locationId: LOC, weekday, opensAt: "14:00", closesAt: "02:00" })));
 

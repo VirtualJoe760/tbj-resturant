@@ -8,17 +8,17 @@ working with Claude Code.
 | Phase | Built | Still to do |
 |---|---|---|
 | 0 Foundations | Next.js, Drizzle schema + migrations, Neon or embedded Postgres, seed, Vitest | Vercel project, Sentry, Playwright, shadcn/ui (plain CSS used) |
-| 1 Menu & cart | Pricing/cart/hours domain + tests, menu with item builder (light/extra/halves), cart | Search, pickup-slot throttling |
+| 1 Menu & cart | Pricing/cart/hours domain + tests, menu with item builder (light/extra/halves), cart, menu times (breakfast/lunch/dinner), item photo carousel | Search, pickup-slot throttling, order-ahead for a later menu time |
 | 2 Checkout | `PaymentProvider` with demo + Stripe Checkout (connect/direct), webhook, live status page | Payment Element, promo codes, Stripe Tax; Stripe path untested without keys |
 | 3 Admin & kitchen | Dashboard, store switches, kitchen board (3 s polling), 86 board, item editor, orders + refunds | Modifier-group editor, Stripe refund call, hours editor |
 | 4 Email | All mail captured in Demo inbox (receipt, ready, refund, invites, forms) | Resend sending worker |
-| 5 PWA | Manifest, icons, offline service worker | Web Push, install prompt |
+| 5 PWA & stores | Manifest (maskable icon, shortcuts), icons rendered from `business-theme.ts`, offline service worker, assetlinks / apple-app-site-association, `create-tbj-restaurant store` kit | Web Push, install prompt, Sign in with Apple, store screenshots |
 | 6 Voice | `/api/voice/*` functions, spoken-modifier parser + tests | Retell agent setup, SMS payment link, call log |
 | 7 Newsletter | Signup, compose + send (captured), sent list | Double opt-in, unsubscribe, scheduling |
 | 7b Content | Footer, legal templates, events, page/form builder, requests inbox | File upload storage, Turnstile |
 | 7c Staff | Invites, schedule builder + warnings, publish, time off, shift cover, clock + breaks, timesheets + CSV | Kiosk/PIN, texts/push, timesheet edits |
 | 7d Payroll & deposits | Deposit-link email (placeholder link), Gusto button stub | Gusto API, real Stripe payment links |
-| 8 Clone tooling | `create-restaurant` CLI (questionnaire, imports, AI menu + photos), `import-client` | Vercel deploy, demo schemas, `promote` |
+| 8 Clone tooling | `create-tbj-restaurant` CLI (questionnaire, imports, AI menu + photos, menu times, logo/icon/photos/fonts/colors → `business-theme.ts`), `import-client`, Admin → Branding | Vercel deploy, demo schemas, `promote` |
 | 9 Chain mode | `location_id` on orders/hours | Everything else |
 
 ## Phase 0 — Foundations (2–3 days)
@@ -63,7 +63,7 @@ working with Claude Code.
 - [ ] `APP_MODE=demo`: config from DB, shared Neon project with schema per demo, banner, noindex
 - [ ] Pitch panel: demo PIN, QR code, one-tap role sign-in, reset, Demo inbox for emails
 - [ ] "Fill test card" in checkout; nightly demo reset
-- [ ] `packages/create-restaurant`: `login` (keychain), `new` questionnaire, Google Places import,
+- [ ] `packages/create-tbj-restaurant`: `login` (keychain), `new` questionnaire, Google Places import,
       website + menu AI import, manual intake, review step, Vercel deploy, QR output
 - [ ] Photo import from Google, Yelp (if key) and website; AI tagging, hero/item/gallery picks, attribution, contact-sheet review
 - [ ] `list`, `reset`, `delete`; Yelp API import if a key is set
@@ -136,7 +136,7 @@ the timesheet.
 $200 deposit by bank transfer and the request moves to Deposit paid.
 
 ## Phase 8 — Clone tooling (3–4 days)
-- [ ] `create-restaurant promote`: client repo from demo data, Neon, Vercel, Stripe, Resend, Retell, redirect demo
+- [ ] `create-tbj-restaurant promote`: client repo from demo data, Neon, Vercel, Stripe, Resend, Retell, redirect demo
 - [ ] AI menu import review screen in admin
 - [ ] Promote a demo to live end to end; fix whatever hurt
 

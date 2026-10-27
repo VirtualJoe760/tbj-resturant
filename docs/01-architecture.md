@@ -66,7 +66,7 @@
 /brand               logo, icons, theme.css (per client)
 /content             about text, photos (per client)
 /docs
-/packages/create-restaurant   intake questionnaire, demo deploy, promote to live (private npm)
+/packages/create-tbj-restaurant   intake questionnaire, demo deploy, promote to live (private npm)
 /scripts             import-menu, seed
 ```
 

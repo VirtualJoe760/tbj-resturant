@@ -5,6 +5,7 @@ import { loadItemDefs } from "@/db/seed";
 import { restaurant } from "@/config/restaurant";
 import { isOpenNow, summarizeHours } from "@/domain/hours";
 import { occurrences } from "@/domain/events";
+import { categoryAvailability, servingNow } from "@/domain/dayparts";
 import type { MenuCategory } from "@/domain/menu-view";
 
 export const LOCATION_ID = "main";
@@ -24,25 +25,49 @@ export const isSoldOut = (it: { soldOutUntil: Date | null }) => !!it.soldOutUnti
 
 export async function getMenu(): Promise<MenuCategory[]> {
   const db = await getDb();
-  const [cats, its, defs] = await Promise.all([
+  const [cats, its, defs, dps] = await Promise.all([
     db.select().from(s.categories).where(eq(s.categories.isVisible, true)).orderBy(asc(s.categories.sort)),
     db.select().from(s.items).where(eq(s.items.isActive, true)).orderBy(asc(s.items.sort)),
     loadItemDefs(db),
+    getDayparts(),
   ]);
   return cats.map((c) => ({
     ...c,
+    ...availabilityOf(c.daypartIds, dps),
     items: its.filter((i) => i.categoryId === c.id).map((i) => ({
-      id: i.id, name: i.name, description: i.description, emoji: i.emoji, imageUrl: i.imageUrl, tags: i.tags,
+      id: i.id, name: i.name, description: i.description, emoji: i.emoji, imageUrl: i.imageUrl, images: i.images.length ? i.images : i.imageUrl ? [i.imageUrl] : [], tags: i.tags,
       basePriceCents: i.basePriceCents, orderableOnline: i.orderableOnline, soldOut: isSoldOut(i), def: defs[i.id],
     })),
   }));
 }
 export type { MenuCategory, MenuItemView } from "@/domain/menu-view";
 
+export async function getDayparts() {
+  const db = await getDb();
+  return db.select().from(s.dayparts).orderBy(asc(s.dayparts.sort), asc(s.dayparts.startsAt));
+}
+
+const availabilityOf = (ids: string[], dps: Awaited<ReturnType<typeof getDayparts>>) => {
+  const a = categoryAvailability(ids, dps, restaurant.timezone);
+  return { availableNow: a.availableNow, availability: a.label };
+};
+
+/** Category ids that can't be ordered right now because of their menu times. */
+export async function unavailableCategoryIds() {
+  const db = await getDb();
+  const [cats, dps] = await Promise.all([db.select().from(s.categories), getDayparts()]);
+  return cats.filter((c) => !availabilityOf(c.daypartIds, dps).availableNow).map((c) => c.id);
+}
+
+/** e.g. ["Lunch"]: the menu times running right now. */
+export async function getServingNow() {
+  return servingNow(await getDayparts(), restaurant.timezone);
+}
+
 export async function getHomeData() {
   const db = await getDb();
   const featured = await db
-    .select({ id: s.items.id, name: s.items.name, emoji: s.items.emoji, price: s.items.basePriceCents, badge: s.featuredItems.badge, blurb: s.featuredItems.blurb })
+    .select({ id: s.items.id, name: s.items.name, emoji: s.items.emoji, images: s.items.images, price: s.items.basePriceCents, badge: s.featuredItems.badge, blurb: s.featuredItems.blurb })
     .from(s.featuredItems).innerJoin(s.items, eq(s.items.id, s.featuredItems.itemId)).orderBy(asc(s.featuredItems.sort));
   const evs = await db.select().from(s.events);
   const upcoming = occurrences(evs.filter((e) => e.showOnHome), todayLocal(), 45).slice(0, 4);

@@ -8,6 +8,13 @@
       "when": 1793090173732,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793121425930,
+      "tag": "0001_branding_dayparts_photos",
+      "breakpoints": true
     }
   ]
 }

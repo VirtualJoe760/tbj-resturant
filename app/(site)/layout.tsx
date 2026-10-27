@@ -2,16 +2,18 @@ import { DemoBanner } from "@/components/DemoBanner";
 import { Footer } from "@/components/Footer";
 import { TabBar } from "@/components/TabBar";
 import { Toaster } from "@/components/Toast";
-import { restaurant } from "@/config/restaurant";
+import { getBrand } from "@/server/branding";
 
 export const dynamic = "force-dynamic";
 
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
+  const brand = await getBrand();
   return (
     <>
       <DemoBanner />
       <TabBar
-        brand={restaurant.shortName.toUpperCase()}
+        brand={brand.shortName.toUpperCase()}
+        logo={brand.logoUrl}
         brandHref="/"
         tabs={[
           { href: "/", label: "Home", icon: "🏠" },

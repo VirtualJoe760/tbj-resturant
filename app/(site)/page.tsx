@@ -4,18 +4,23 @@ import { dayLabel, repeatLabel } from "@/domain/events";
 import { formatTime } from "@/domain/hours";
 import { money } from "@/domain/pricing";
 import { getHomeData } from "@/server/queries";
+import { getBrand } from "@/server/branding";
+import { HeroBanners } from "@/components/HeroBanners";
 import { NewsletterSignup } from "./NewsletterSignup";
 
 export default async function Home() {
-  const { featured, upcoming, location } = await getHomeData();
+  const [{ featured, upcoming, location }, brand] = await Promise.all([getHomeData(), getBrand()]);
   return (
     <>
       <section className="hero">
+        {brand.banners.length > 0 && <HeroBanners urls={brand.banners} />}
         <div className={`status ${location.open ? "open" : "closed"}`}>
           {location.open ? "● Open now" : "● Closed now"} · {location.hoursSummary[0]}
         </div>
-        <h1>{restaurant.name}</h1>
-        <p>{restaurant.tagline}</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {brand.logoUrl && <img className="logo" src={brand.logoUrl} alt="" />}
+        <h1 className="name">{brand.name}</h1>
+        <p>{brand.tagline}</p>
         <Link className="btn" href="/menu">
           <span>{location.open ? "Order now" : "Order ahead"}</span>
           <span>Pickup ~{location.pickupLeadMinutes + (location.busy ? 15 : 0)} min →</span>
@@ -26,7 +31,8 @@ export default async function Home() {
       <div className="scroller">
         {featured.map((f) => (
           <Link key={f.id} className="special" href={`/menu?item=${f.id}`}>
-            <div className="em">{f.emoji}</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {f.images[0] ? <img className="em photo" src={f.images[0]} alt="" loading="lazy" /> : <div className="em">{f.emoji}</div>}
             <span className="badge">{f.badge}</span>
             <div style={{ fontWeight: 700, marginTop: 6 }}>{f.name}</div>
             <div className="mods">{f.blurb}</div>

@@ -1,10 +1,13 @@
-// create-restaurant: questionnaire → import → client files → (optional) demo deploy.
+// create-tbj-restaurant: questionnaire → client files (menu, menu times, logo, app icon, photos,
+// fonts, colors) → this repo's site → (optional) demo deploy → app-store kit.
 // Usage:
-//   create-restaurant login                 store our API keys (hidden prompts)
-//   create-restaurant new [--answers a.json] questionnaire (or answers file for scripted runs)
-//   create-restaurant list                  intakes on this machine
-//   create-restaurant switch [--google "John's Diner, Indio, CA" | --yelp <url> | --website <url>] [--deploy]
-//                                           point this repo's demo site at a different business
+//   create-tbj-restaurant login                 store our API keys (hidden prompts)
+//   create-tbj-restaurant new [--answers a.json] questionnaire (or answers file for scripted runs)
+//   create-tbj-restaurant list                  intakes on this machine
+//   create-tbj-restaurant switch [--google "John's Diner, Indio, CA" | --yelp <url> | --website <url>]
+//                                [--logo f.png] [--icon f.png] [--photos a.jpg,b.jpg] [--deploy]
+//                                               point this repo's demo site at a different business
+//   create-tbj-restaurant store [--url https://…] Play Store + App Store kit in ./store
 import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
@@ -15,8 +18,11 @@ import { readWebsite } from "./sources/website.ts";
 import { readMenu, sortPhotos } from "./sources/ai.ts";
 import { parsePlainMenu } from "./sources/manual-menu.ts";
 import { writeClient } from "./write.ts";
-import { applyToApp, findAppRoot, timezoneFor } from "./apply.ts";
-import type { Intake, Menu, Photo } from "./types.ts";
+import { applyToApp, domainFor, findAppRoot, timezoneFor } from "./apply.ts";
+import { checkImage, collectBrandFiles, FONT_CHOICES, pickBanners } from "./theme.ts";
+import { guessMenuTimes, parseRange, PRESETS } from "./menu-times.ts";
+import { packageIdFor, writeStoreKit } from "./store.ts";
+import type { Intake, Menu, MenuTime, Photo } from "./types.ts";
 
 const ROOT = process.env.CR_OUT ?? path.resolve(process.cwd(), "clients");
 const cancel = <T>(v: T | symbol): T => {
@@ -29,7 +35,7 @@ const cancel = <T>(v: T | symbol): T => {
 const slugify = (s: string) => s.toLowerCase().replace(/['’]/g, "").replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 async function login() {
-  p.intro("Store API keys for create-restaurant");
+  p.intro("Store API keys for create-tbj-restaurant");
   const status = keyStatus();
   const values: Partial<Record<KeyName, string>> = {};
   for (const k of Object.keys(KEYS) as KeyName[]) {
@@ -53,6 +59,16 @@ interface Answers {
   menuFiles?: string[];
   cuisine?: string;
   features?: Record<string, boolean>;
+  // the look → business-theme.ts
+  logo?: string; // file path
+  icon?: string;
+  photos?: string[]; // the owner's own banner photos
+  accent?: string;
+  header?: string;
+  headingFont?: string;
+  bodyFont?: string;
+  menuTimes?: MenuTime[];
+  androidPackage?: string;
 }
 
 interface SwitchOptions {
@@ -75,7 +91,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   const gKey = getKey("GOOGLE_PLACES_API_KEY");
   const hasGoogle = await ask<boolean>("google", () => p.confirm({ message: "Does it have a Google Business listing?" }));
   if (hasGoogle) {
-    if (!gKey) p.log.warn("No Google Places key saved — run `create-restaurant login`. Skipping Google.");
+    if (!gKey) p.log.warn("No Google Places key saved — run `create-tbj-restaurant login`. Skipping Google.");
     else {
       spin.start("Searching Google");
       let places: GooglePlace[] = [];
@@ -176,11 +192,31 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   }
   intake.menu = menu;
 
+  // 5b. Menu times: breakfast / lunch / dinner sections that are only served part of the day
+  const sections = menu?.categories.map((c) => c.name) ?? [];
+  const guessed = guessMenuTimes(sections);
+  if (scripted) intake.menuTimes = scripted.menuTimes ?? guessed;
+  else if (sections.length) {
+    const chosen = cancel(await p.multiselect({
+      message: "Any sections only served part of the day? (Space to pick, Enter for none)",
+      options: PRESETS.map((x) => ({ value: x.name, label: x.name, hint: guessed.some((g) => g.name === x.name) ? "found in the menu" : undefined })),
+      initialValues: guessed.map((g) => g.name),
+      required: false,
+    })) as string[];
+    intake.menuTimes = [];
+    for (const name of chosen) {
+      const preset = PRESETS.find((x) => x.name === name)!;
+      const range = parseRange(String(cancel(await p.text({ message: `${name} hours?`, initialValue: `${preset.startsAt}-${preset.endsAt}`, validate: (v) => (parseRange(v ?? "") ? undefined : "Like 7-11, 11am-3pm or 22:00-02:00") }))))!;
+      const secs = cancel(await p.multiselect({ message: `Which sections are ${name.toLowerCase()} only?`, options: sections.map((x) => ({ value: x, label: x })), initialValues: guessed.find((g) => g.name === name)?.sections ?? [], required: true })) as string[];
+      intake.menuTimes.push({ name, startsAt: range[0], endsAt: range[1], sections: secs });
+    }
+  }
+
   // 6. Photos: AI sorting into hero / item / gallery / event
   if (intake.photos.length && aiReady) {
     spin.start(`Sorting ${intake.photos.length} photos`);
     try {
-      intake.photos = await sortPhotos(intake.photos, menu?.categories.flatMap((c) => c.items.map((i) => i.name)) ?? []);
+      intake.photos = await sortPhotos(intake.photos, menu?.categories.flatMap((c) => c.items.map((i) => i.name)) ?? [], gKey);
       const count = (r: Photo["role"]) => intake.photos.filter((x) => x.role === r).length;
       spin.stop(`Photos: ${count("hero")} hero, ${count("item")} matched to menu items, ${count("gallery")} gallery, ${count("skip")} skipped`);
     } catch (e) {
@@ -189,6 +225,36 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   } else if (intake.photos.length) p.log.info(`${intake.photos.length} photos found (add an Anthropic key to sort them automatically).`);
 
   intake.timezone = timezoneFor(intake.address);
+
+  // 6b. The look → src/config/business-theme.ts (logo, app icon, home page photos, fonts, colors)
+  const clientsDir = switching ? path.join(switching.root, "clients") : ROOT;
+  const clientDir = path.join(clientsDir, intake.slug);
+  const clean = (v?: string) => v?.trim().replace(/^"|"$/g, "") || undefined;
+  const imageFile = (msg: string, key: "logo" | "icon") =>
+    ask<string>(key, () => p.text({ message: msg, placeholder: "Enter to skip", validate: (v) => (clean(v) ? checkImage(clean(v)!) ?? undefined : undefined) }));
+  const logo = clean(await imageFile("Logo file? (PNG with a see-through background works best)", "logo"));
+  const icon = clean(await imageFile("App icon file? (square, 1024 × 1024; Enter = first letter on the brand colors)", "icon"));
+  const listingBanners = pickBanners(intake.photos);
+  const splitFiles = (v: string) => v.split(",").map((f) => clean(f)).filter((f): f is string => !!f);
+  const ownPhotos = scripted ? scripted.photos ?? [] : splitFiles(String(cancel(await p.text({
+    message: `Home page photos? File paths, comma separated${listingBanners.length ? ` (Enter = ${listingBanners.length} listing photos for the demo)` : ""}`,
+    placeholder: "Enter to skip",
+    validate: (v) => splitFiles(v ?? "").map((f) => (checkImage(f) ? `${f}: ${checkImage(f)}` : "")).find(Boolean) || undefined,
+  }))));
+  for (const f of [logo, icon, ...ownPhotos]) if (f && checkImage(f)) throw new Error(`${f}: ${checkImage(f)}`);
+  const hex = (v?: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? undefined : "A color like #F5A524");
+  const accent = await ask<string>("accent", () => p.text({ message: "Accent color (buttons, highlights)?", initialValue: intake.theme?.primary ?? "#F5A524", validate: hex }));
+  const header = await ask<string>("header", () => p.text({ message: "Header color (top bars, app background)?", initialValue: intake.theme?.header ?? "#18181b", validate: hex }));
+  const fontOptions = FONT_CHOICES.map(([value, label]) => ({ value, label }));
+  const headingFont = await ask<string>("headingFont", () => p.select({ message: "Heading font (name, page titles)?", options: fontOptions, initialValue: "system" }));
+  const bodyFont = await ask<string>("bodyFont", () => p.select({ message: "Body font?", options: fontOptions, initialValue: "system" }));
+  intake.branding = {
+    ...collectBrandFiles(clientDir, { logo, icon, banners: ownPhotos }),
+    banners: listingBanners,
+    fonts: { heading: headingFont ?? "system", body: bodyFont ?? "system" },
+    colors: { accent: accent ?? intake.theme?.primary, header: header ?? intake.theme?.header },
+  };
+  intake.app = { androidPackage: scripted?.androidPackage ?? packageIdFor(domainFor(intake)) };
 
   // 7. Features
   intake.features = scripted?.features ?? Object.fromEntries(((cancel(await p.multiselect({
@@ -203,13 +269,15 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     `Name      ${intake.name}`, `Address   ${intake.address ?? "—"} (${intake.sources.address ?? "missing"})`, `Phone     ${intake.phone ?? "—"}`,
     `Website   ${intake.website ?? "—"}`, `Menu      ${menu ? menu.categories.map((c) => `${c.name} (${c.items.length})`).join(", ") : "none — add in admin"}`,
     `Photos    ${intake.photos.length} (${intake.photos.filter((x) => !x.owned).length} from listings: demo only, credited)`,
+    `Times     ${intake.menuTimes?.length ? intake.menuTimes.map((t) => `${t.name} ${t.startsAt}–${t.endsAt} (${t.sections.join(", ")})`).join("; ") : "all sections whenever open"}`,
+    `Look      logo ${intake.branding.logoFile ? "yes" : "none"} · icon ${intake.branding.iconFile ? "yes" : "letter"} · ${intake.branding.bannerFiles?.length ?? 0} own + ${listingBanners.length} listing photos · fonts ${intake.branding.fonts?.heading}/${intake.branding.fonts?.body} · ${intake.branding.colors?.accent}`,
+    `App id    ${intake.app.androidPackage}`,
     ...(guesses.length ? ["", "Check with the owner:", ...guesses.map((g) => `  • ${g}`)] : []),
   ].join("\n"), "Review");
   if (!scripted && !cancel(await p.confirm({ message: "Write the client files?" }))) return p.cancel("Nothing written.");
 
-  const clientsDir = switching ? path.join(switching.root, "clients") : ROOT;
   const dir = writeClient(clientsDir, intake, guesses);
-  if (!switching) return p.outro(`Wrote ${path.relative(process.cwd(), dir)}. Next: \`create-restaurant switch --answers\` or \`pnpm import-client ${intake.slug}\`.`);
+  if (!switching) return p.outro(`Wrote ${path.relative(process.cwd(), dir)}. Next, inside the app repo: \`create-tbj-restaurant switch --answers\` or \`pnpm import-client ${intake.slug}\`.`);
 
   const deploy = switching.deploy || (!scripted && cancel(await p.confirm({ message: "Push it so the Vercel preview site switches too?" })) === true);
   try {
@@ -222,6 +290,26 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     process.exit(1);
   }
   p.outro(deploy ? `The preview site will show ${intake.name} in about 2 minutes.` : `Local config now points at ${intake.name}. Run with --deploy to update the preview site.`);
+}
+
+/** Writes ./store: Bubblewrap (Play Store) and Capacitor (App Store) projects for the current site. */
+async function store() {
+  const root = findAppRoot();
+  if (!root) {
+    console.error("Run this inside the restaurant app repo.");
+    process.exit(1);
+  }
+  const { pathToFileURL } = await import("node:url");
+  const { restaurant } = await import(pathToFileURL(path.join(root, "src", "config", "restaurant.ts")).href);
+  const { businessTheme } = await import(pathToFileURL(path.join(root, "src", "config", "business-theme.ts")).href);
+  const url = (flag("url") ?? `https://${restaurant.domain}`).replace(/\/$/, "");
+  const androidPackage = restaurant.app?.androidPackage ?? packageIdFor(restaurant.domain);
+  const dir = path.join(root, "store");
+  writeStoreKit(dir, {
+    name: restaurant.name, shortName: restaurant.shortName, url, androidPackage, iosBundleId: restaurant.app?.iosBundleId ?? androidPackage,
+    themeColor: businessTheme.colors.header, backgroundColor: businessTheme.colors.header,
+  });
+  console.log(`Wrote ${path.relative(process.cwd(), dir) || "."}/ for ${url} (${androidPackage}). Next steps: store/README.md`);
 }
 
 function list() {
@@ -264,9 +352,12 @@ else if (cmd === "switch") {
       google: !!google,
       yelp: yelp ?? "",
       website: website ?? "",
-      menuText: flag("menu-text"),
+      // one-line form: "Breakfast\nPancakes $9.95" (Windows shells can double the backslash)
+      menuText: flag("menu-text")?.replace(/\\+n/g, "\n"),
       menuFiles: flag("menu-file") ? [flag("menu-file")!] : undefined,
       address: flag("address"), phone: flag("phone"), email: flag("email"),
+      logo: flag("logo"), icon: flag("icon"), photos: flag("photos")?.split(",").map((x) => x.trim()).filter(Boolean),
+      accent: flag("accent"), header: flag("header"), headingFont: flag("heading-font"), bodyFont: flag("body-font"),
       features: { ordering: true, events: true, scheduling: true, newsletter: true },
     };
     if (!answers.name) {
@@ -277,4 +368,5 @@ else if (cmd === "switch") {
   await newRestaurant(answers, { root, deploy: rest.includes("--deploy"), local: rest.includes("--local") });
 }
 else if (cmd === "list") list();
-else console.log("Usage: create-restaurant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--deploy] [--local]>");
+else if (cmd === "store") await store();
+else console.log("Usage: create-tbj-restaurant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--logo f] [--icon f] [--photos a,b] [--deploy] [--local] | store [--url https://…]>");

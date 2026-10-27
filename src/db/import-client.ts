@@ -1,11 +1,14 @@
-// Loads a create-restaurant intake (clients/<slug>/) into the database: brand, location,
-// hours and menu. Orders, staff and test accounts are left alone.
+// Loads a create-tbj-restaurant intake (clients/<slug>/) into the database: brand, location,
+// hours, menu and menu times. The look (logo, icon, banners, fonts, colors) is not here: the CLI
+// writes it to src/config/business-theme.ts. Orders, staff and test accounts are left alone.
 import fs from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import type { PgliteDatabase } from "drizzle-orm/pglite";
 import * as s from "./schema";
+import { DEFAULT_DAYPARTS } from "../domain/dayparts";
 
+interface MenuTime { name: string; startsAt: string; endsAt: string; days?: number[]; sections: string[] }
 interface MenuJson {
   categories: { name: string; items: { name: string; description: string; price_cents: number; orderable_online: boolean; tags: string[];
     modifier_groups: { name: string; kind: "choice" | "addon" | "removal" | "option"; min: number; max: number; options: { name: string; price_cents: number; is_default: boolean }[] }[] }[] }[];
@@ -35,6 +38,8 @@ export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
   const newShort: string = intake.shortName ?? shortNameOf(intake.name);
   const rename = (text: string) => oldNames.reduce((t, n) => t.split(n).join(n === prev?.name ? intake.name : newShort), text);
 
+  // a new business starts from its own business-theme.ts, so drop the old one's admin changes and uploads
+  await db.delete(s.media);
   await db.update(s.brand).set({ name: intake.name, settings: { theme: intake.theme ?? null, links: intake.links, slug: intake.slug, shortName: newShort, domain: intake.domain ?? oldDomain } }).where(eq(s.brand.id, "brand"));
   for (const pg of await db.select().from(s.pages))
     await db.update(s.pages).set({ title: rename(pg.title), subtitle: rename(pg.subtitle), bodyHtml: rename(pg.bodyHtml), updatedAt: new Date() }).where(eq(s.pages.id, pg.id));
@@ -57,10 +62,19 @@ export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
   await db.delete(s.modifiers);
   await db.delete(s.modifierGroups);
   await db.delete(s.categories);
+  await db.delete(s.dayparts);
+  // menu times: what the intake says, else guessed from section names ("Breakfast", "Lunch specials")
+  const times: MenuTime[] = intake.menuTimes?.length ? intake.menuTimes
+    : DEFAULT_DAYPARTS.map((d) => ({ name: d.name, startsAt: d.startsAt, endsAt: d.endsAt, sections: menu.categories.map((c) => c.name).filter((n) => d.match.test(n)) })).filter((t) => t.sections.length);
+  const daypartsFor: Record<string, string[]> = {};
+  for (const [i, t] of times.entries()) {
+    const [dp] = await db.insert(s.dayparts).values({ name: t.name, startsAt: t.startsAt, endsAt: t.endsAt, days: t.days ?? [0, 1, 2, 3, 4, 5, 6], sort: i }).returning({ id: s.dayparts.id });
+    for (const sec of t.sections) (daypartsFor[sec.toLowerCase()] ??= []).push(dp.id);
+  }
   let n = 0;
   for (const [ci, c] of menu.categories.entries()) {
     const catId = slug(c.name) || `cat-${ci}`;
-    await db.insert(s.categories).values({ id: catId, name: c.name, sort: ci }).onConflictDoNothing();
+    await db.insert(s.categories).values({ id: catId, name: c.name, sort: ci, daypartIds: daypartsFor[c.name.toLowerCase()] ?? [] }).onConflictDoNothing();
     for (const [ii, it] of c.items.entries()) {
       const itemId = `${catId}-${slug(it.name)}-${ii}`;
       await db.insert(s.items).values({ id: itemId, categoryId: catId, name: it.name, description: it.description, basePriceCents: it.price_cents, orderableOnline: it.orderable_online, tags: it.tags, emoji: EMOJI.find(([re]) => re.test(it.name + " " + c.name))?.[1] ?? "🍽️", sort: n++ });

@@ -13,7 +13,8 @@ export default async function More() {
   const [{ subs }] = await db.select({ subs: sql<number>`count(*)::int` }).from(s.subscribers);
   const rows: [string, string, string, string, number?][] = [
     ["/admin/requests", "📬", "Requests", "Bands, private events, catering, jobs", n],
-    ["/admin/menu", "🍕", "Menu & 86 board", "Items, prices, sold-out toggles"],
+    ["/admin/menu", "🍕", "Menu & 86 board", "Items, prices, menu times, sold-out toggles"],
+    ["/admin/branding", "🎨", "Branding", "Logo, home page photos, fonts, colors, app icon"],
     ["/admin/timesheets", "⏱", "Timesheets", "Hours, breaks, payroll export"],
     ["/admin/team", "👥", "Team & access", "Invite employees, kitchen tablet, owners"],
     ["/admin/pages", "📄", "Pages & forms", "Build pages and forms, legal pages"],

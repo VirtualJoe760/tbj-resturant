@@ -1,0 +1,24 @@
+{
+  "name": "create-tbj-restaurant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TBJ restaurant sites: intake questionnaire (Google, Yelp, website or manual) for menu, menu times, logo, app icon, photos, fonts and colors; switches the demo site; app-store kit",
+  "type": "module",
+  "bin": {
+    "create-tbj-restaurant": "./bin.mjs"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
+    "@clack/prompts": "0.11.0",
+    "tsx": "4.20.5",
+    "zod": "3.25.76"
+  },
+  "files": [
+    "bin.mjs",
+    "src",
+    "!src/**/*.test.ts"
+  ]
+}

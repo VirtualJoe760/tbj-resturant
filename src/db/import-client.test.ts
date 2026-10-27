@@ -29,4 +29,25 @@ describe("import-client", () => {
     expect(titles).toContain("Work at Tony's");
     expect((await db.select().from(schema.user)).map((u) => u.email.split("@")[1])).toEqual(["tonys.com", "tonys.com", "tonys.com", "tonys.com"]);
   });
+
+  it("creates menu times from section names and clears the old look", async () => {
+    const db = drizzle(new PGlite(), { schema });
+    await migrate(db, { migrationsFolder: path.join(__dirname, "../../drizzle") });
+    await seedIfEmpty(db);
+    const [b0] = await db.select().from(schema.brand);
+    await db.update(schema.brand).set({ settings: { ...b0.settings, brandingOverrides: { headingFont: "bebas" } } });
+    await db.insert(schema.media).values({ mime: "image/png", data: "" });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "intake-"));
+    fs.writeFileSync(path.join(dir, "intake.json"), JSON.stringify({ slug: "johns", name: "John's Diner", domain: "johns.com", city: "Indio", links: {} }));
+    const item = { name: "Pancakes", description: "", price_cents: 900, orderable_online: true, tags: [], modifier_groups: [] };
+    fs.writeFileSync(path.join(dir, "menu.json"), JSON.stringify({ categories: [{ name: "Breakfast", items: [item] }, { name: "Burgers", items: [{ ...item, name: "Burger" }] }], guesses: [] }));
+    await importClient(db, dir);
+    expect((await db.select().from(schema.brand))[0].settings).not.toHaveProperty("brandingOverrides");
+    expect(await db.select().from(schema.media)).toHaveLength(0);
+    const [bf] = await db.select().from(schema.dayparts);
+    expect(bf.name).toBe("Breakfast");
+    const cats = await db.select().from(schema.categories);
+    expect(cats.find((c) => c.name === "Breakfast")!.daypartIds).toEqual([bf.id]);
+    expect(cats.find((c) => c.name === "Burgers")!.daypartIds).toEqual([]);
+  });
 });

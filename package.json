@@ -14,7 +14,8 @@
     "db:seed": "tsx src/db/seed.ts",
     "seed:check": "tsx src/db/seed.ts --dry-run",
     "import-client": "tsx --tsconfig tsconfig.json scripts/import-client.ts",
-    "create-restaurant": "node packages/create-restaurant/bin.mjs",
+    "create-tbj-restaurant": "node packages/create-tbj-restaurant/bin.mjs",
+    "tbj": "node packages/create-tbj-restaurant/bin.mjs",
     "vercel-build": "tsx --tsconfig tsconfig.json scripts/setup-db.ts && next build"
   },
   "dependencies": {

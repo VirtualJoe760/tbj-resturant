@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         { href: "/admin/kitchen", label: "Kitchen", icon: "🍳" },
         { href: "/admin/schedule", label: "Schedule", icon: "🗓", match: ["/admin/timesheets"] },
         { href: "/admin/events", label: "Events", icon: "🎤" },
-        { href: "/admin/more", label: "More", icon: "☰", badge: n || undefined, match: ["/admin/menu", "/admin/pages", "/admin/requests", "/admin/team", "/admin/newsletter", "/admin/orders"] },
+        { href: "/admin/more", label: "More", icon: "☰", badge: n || undefined, match: ["/admin/menu", "/admin/branding", "/admin/pages", "/admin/requests", "/admin/team", "/admin/newsletter", "/admin/orders"] },
       ]} />
       <div className="page wide">{children}</div>
       <Toaster />

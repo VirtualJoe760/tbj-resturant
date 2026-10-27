@@ -7,9 +7,11 @@ import { getDb, schema as s } from "@/db/client";
 import type { FormField } from "@/db/schema";
 import type { OrderStatus } from "@/domain/orders";
 import { transitionOrder } from "@/server/order-service";
+import { pruneMedia } from "@/server/media";
 import { sendEmail, simpleEmail } from "@/server/email";
 import { LOCATION_ID } from "@/server/queries";
 import { restaurant } from "@/config/restaurant";
+import { businessTheme } from "@/config/business-theme";
 
 const done = (...paths: string[]) => paths.forEach((p) => revalidatePath(p));
 
@@ -64,6 +66,17 @@ export async function updateItem(form: FormData) {
   done("/admin/menu", "/menu", "/");
 }
 
+/** Menu item photo carousel: the full list in order (uploads are "/media/<id>"). */
+export async function setItemImages(itemId: string, images: string[]) {
+  await requireRole(ADMIN_ROLES);
+  const urls = z.array(z.string().max(2000).refine((u) => u.startsWith("/media/") || u.startsWith("https://"))).max(10).safeParse(images);
+  if (!urls.success) return;
+  const db = await getDb();
+  await db.update(s.items).set({ images: urls.data }).where(eq(s.items.id, itemId));
+  await pruneMedia();
+  done("/admin/menu", "/menu", "/");
+}
+
 export async function addItem(form: FormData) {
   await requireRole(ADMIN_ROLES);
   const db = await getDb();
@@ -71,6 +84,38 @@ export async function addItem(form: FormData) {
   const price = Math.round(Number(form.get("price")) * 100);
   if (!name || !Number.isFinite(price)) return;
   await db.insert(s.items).values({ name, description: String(form.get("description") ?? ""), basePriceCents: price, categoryId: String(form.get("categoryId")), emoji: String(form.get("emoji") || "🍽️"), sort: 999 });
+  done("/admin/menu", "/menu");
+}
+
+// ── menu times (breakfast / lunch / dinner) ──
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export async function saveDaypart(form: FormData) {
+  await requireRole(ADMIN_ROLES);
+  const db = await getDb();
+  const id = String(form.get("id") ?? "");
+  const name = String(form.get("name") ?? "").trim().slice(0, 40);
+  const startsAt = String(form.get("startsAt") ?? ""), endsAt = String(form.get("endsAt") ?? "");
+  const days = form.getAll("days").map(Number).filter((d) => d >= 0 && d <= 6);
+  if (!name || !TIME.test(startsAt) || !TIME.test(endsAt) || !days.length) return;
+  if (id) await db.update(s.dayparts).set({ name, startsAt, endsAt, days }).where(eq(s.dayparts.id, id));
+  else await db.insert(s.dayparts).values({ name, startsAt, endsAt, days, sort: 99 });
+  done("/admin/menu", "/menu");
+}
+
+export async function deleteDaypart(id: string) {
+  await requireRole(ADMIN_ROLES);
+  const db = await getDb();
+  for (const c of await db.select().from(s.categories))
+    if (c.daypartIds.includes(id)) await db.update(s.categories).set({ daypartIds: c.daypartIds.filter((x) => x !== id) }).where(eq(s.categories.id, c.id));
+  await db.delete(s.dayparts).where(eq(s.dayparts.id, id));
+  done("/admin/menu", "/menu");
+}
+
+export async function setCategoryDayparts(form: FormData) {
+  await requireRole(ADMIN_ROLES);
+  const db = await getDb();
+  await db.update(s.categories).set({ daypartIds: form.getAll("daypartIds").map(String) }).where(eq(s.categories.id, String(form.get("categoryId"))));
   done("/admin/menu", "/menu");
 }
 
@@ -153,7 +198,7 @@ export async function sendDepositLink(id: string, dollars: number) {
   await db.update(s.formSubmissions).set({ depositCents: cents, status: "Quoted" }).where(eq(s.formSubmissions.id, id));
   // Live: a Stripe payment link (card or bank transfer). Demo: captured email with a placeholder link.
   await sendEmail(db, { to: sub.submitterEmail, subject: `Deposit for your booking at ${restaurant.shortName}`, kind: "deposit-link",
-    html: simpleEmail(`<p>Hi ${sub.submitterName ?? ""}! To lock in your date, please pay a $${dollars.toFixed(2)} deposit.</p><p><a href="#" style="background:${restaurant.theme.primary};color:#18181b;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:700">Pay deposit — card or bank transfer</a></p>`) });
+    html: simpleEmail(`<p>Hi ${sub.submitterName ?? ""}! To lock in your date, please pay a $${dollars.toFixed(2)} deposit.</p><p><a href="#" style="background:${businessTheme.colors.accent};color:#18181b;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:700">Pay deposit — card or bank transfer</a></p>`) });
   done("/admin/requests");
   return { ok: true, message: "Deposit link sent" };
 }

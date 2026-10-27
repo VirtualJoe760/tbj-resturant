@@ -5,7 +5,7 @@ your laptop and a tablet, and place a real (test) order that pops up on the kitc
 Every demo costs nothing until they buy. Target: a new demo live in **under 5 minutes**.
 
 ```
- npx @ourco/create-restaurant new          npx @ourco/create-restaurant promote the-hood
+ npx create-tbj-restaurant new          npx create-tbj-restaurant promote the-hood
  ─────────────────────────────────          ───────────────────────────────────────────────
  questionnaire → import → demo deploy  ──►  pitch  ──►  sold  ──►  own DB, Stripe, domain, live
  the-hood-palm-desert.vercel.app (demo)                        thehoodpalmdesert.com (live)
@@ -13,8 +13,8 @@ Every demo costs nothing until they buy. Target: a new demo live in **under 5 mi
 
 ## The CLI package
 
-- Lives in the template repo as `packages/create-restaurant`, published as a **private**
-  npm package (`@ourco/create-restaurant`, scoped to our npm org, or GitHub Packages) so
+- Lives in the template repo as `packages/create-tbj-restaurant`, published as a **private**
+  npm package (`create-tbj-restaurant`, scoped to our npm org, or GitHub Packages) so
   only we can install it. Built with `@clack/prompts` (the friendly arrow-key prompts).
 - Commands:
 
@@ -187,8 +187,10 @@ Runs the existing go-live steps from [08](08-cloning-playbook.md), starting from
 
 | Piece | Status |
 |---|---|
-| `packages/create-restaurant` | `login`, `new` (interactive or `--answers file.json`), `list`. Google Places, Yelp API, website reader, Claude menu reading + photo sorting, manual intake, review, writes `clients/<slug>/` (intake.json, menu.json, photos.json, owner-questions.md) |
+| `packages/create-tbj-restaurant` | `login`, `new` (interactive or `--answers file.json`), `list`. Google Places, Yelp API, website reader, Claude menu reading + photo sorting, manual intake, review, writes `clients/<slug>/` (intake.json, menu.json, photos.json, owner-questions.md) |
 | `pnpm import-client <slug>` | Loads brand, address, hours and menu into the database |
-| `create-restaurant switch` | Points this repo's demo at another business: `--google "John's Diner, Indio, CA"`, `--yelp <url>`, `--website <url>` (or the questionnaire). Regenerates `src/config/restaurant.ts`, writes `clients/<slug>/`, renames pages and test accounts (`admin@johnsdiner.com`…). `--deploy` commits and pushes; the Vercel build (`scripts/setup-db.ts`) then loads the business into Neon, so no database password is needed on this computer. `--local` also loads it into the local database |
+| `create-tbj-restaurant switch` | Points this repo's demo at another business: `--google "John's Diner, Indio, CA"`, `--yelp <url>`, `--website <url>` (or the questionnaire). Regenerates `src/config/restaurant.ts`, writes `clients/<slug>/`, renames pages and test accounts (`admin@johnsdiner.com`…). `--deploy` commits and pushes; the Vercel build (`scripts/setup-db.ts`) then loads the business into Neon, so no database password is needed on this computer. `--local` also loads it into the local database |
 | Demo mode | `APP_MODE=demo`: banner, noindex, demo checkout with test card, Demo inbox, four test accounts on `/login` |
+| Branding + menu times in the intake | Asks for the logo, app icon, home page photos (else the best listing photos), heading/body font and colors, and which sections are breakfast / lunch / dinner only ("7-11", "11am-3pm"). `switch` writes `src/config/business-theme.ts` and copies the images to `public/brand/`; menu times load into the database. Flags: `--logo`, `--icon`, `--photos a,b`, `--accent`, `--header`, `--heading-font`, `--body-font`. See doc 16 |
+| `create-tbj-restaurant store` | Writes `./store`: Bubblewrap project for Google Play, Capacitor config for the App Store, and a README with the steps. Android package id comes from the domain (`com.johnsdiner.app`) |
 | Not yet | Vercel deploy step, shared demo Neon schema per prospect, pitch panel PIN/QR, `promote`, `reset`, `delete`. Keys are kept in `~/.config/create-restaurant/credentials.json` (owner-only), not the OS keychain yet |
