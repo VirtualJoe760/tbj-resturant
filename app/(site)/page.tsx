@@ -42,7 +42,7 @@ export default async function Home() {
         ))}
       </div>
 
-      {restaurant.features.events && (
+      {restaurant.features.events && upcoming.length > 0 && (
         <>
           <div className="sec">Coming up <Link href="/events">All events →</Link></div>
           {upcoming.map((e) => {
