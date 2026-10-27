@@ -9,6 +9,8 @@ Everything visual about a restaurant lives in one file, with its images in `publ
 | `logo` | Home page header, desktop top bar | PNG with a see-through background, ~800 px wide |
 | `appIcon` | Phone home screen, favicon, Play Store / App Store icon, install prompt | Square PNG, 1024 × 1024, important part in the middle 80% |
 | `heroBanners` | Crossfading photos behind the home page header, in order | Wide JPGs, ≥ 1600 px across |
+| `style` | The whole look: **Classic** (light, rounded), **Midnight** (dark pages, glowing accent), **Diner** (cream paper, bold outlines, offset shadows), **Minimal** (white space, square corners) | Switch any time in Admin → Branding |
+| `gallery` | The "Photos" strip on the home page | Upload in Admin → Branding → Photo gallery |
 | `fonts.heading` / `fonts.body` | Name and page titles / everything else | Ids from `FONTS` in `src/domain/branding.ts` (Google Fonts) |
 | `colors.accent` / `header` / `background` | Buttons, top bars and app background, page | Hex; button text turns black or white by itself |
 
@@ -26,7 +28,7 @@ the demo to another business clears overrides too.
 
 ## Menu item photos
 
-Admin → Menu → Edit items → each item has a **Photos** strip: add several at once, reorder with
+Admin → Menu → Edit items → every item shows its **Photos** strip right on the list (no panel to open): add several at once, reorder with
 ‹ ›, remove with ✕. The first is the cover (menu thumbnail). On the menu, the item sheet opens
 with a swipeable carousel (arrows and dots on computers). Uploads are resized in the browser
 (1600 px JPG) and stored in the database (`media` table), so clones need no file storage.
