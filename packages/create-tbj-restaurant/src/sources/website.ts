@@ -23,14 +23,29 @@ export async function readWebsite(url: string) {
     .map((src) => { try { return new URL(src, base).toString(); } catch { return null; } })
     .filter((u): u is string => !!u && /\.(jpe?g|png|webp)(\?|$)/i.test(u)).slice(0, 15);
 
+  const text = pages.map(strip).join("\n\n").slice(0, 60000);
+  // their logo (an <img> named like one) and app icon (apple-touch-icon, or a large favicon)
+  const abs = (u?: string) => { try { return u ? new URL(u, base).toString() : undefined; } catch { return undefined; } };
+  const raster = (u?: string) => (u && /\.(png|jpe?g|webp)(\?|$)/i.test(u) ? u : undefined);
+  const attr = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}=["']([^"']+)["']`, "i"))?.[1];
+  const logoTag = (home.match(/<img[^>]+>/gi) ?? []).find((t) => /logo/i.test(t));
+  const logoUrl = raster(abs(logoTag && (attr(logoTag, "src") ?? attr(logoTag, "data-src"))));
+  const linkTags = home.match(/<link[^>]+>/gi) ?? [];
+  const touch = linkTags.find((t) => /rel=["']apple-touch-icon/i.test(t)) ?? linkTags.find((t) => /rel=["'][^"']*icon/i.test(t) && /sizes=["'](19[2-9]|[2-9]\d\d|\d{4})/i.test(t));
+  const iconUrl = raster(abs(touch && attr(touch, "href")));
+  const pdfs = [...new Set([...all.matchAll(/href="([^"]+\.pdf)"/gi)].map((m) => new URL(m[1], base).toString()))];
   return {
     url: base.toString(),
+    logoUrl,
+    iconUrl,
+    /** prices on the page or a menu PDF: worth handing to Claude */
+    hasMenu: (text.match(/\$\s?\d{1,3}(?:\.\d{2})?/g) ?? []).length >= 5 || pdfs.length > 0,
     title: home.match(/<title>([^<]*)<\/title>/i)?.[1]?.trim(),
-    text: pages.map(strip).join("\n\n").slice(0, 60000),
+    text,
     themeColor: home.match(/name="theme-color"\s+content="([^"]+)"/i)?.[1],
     email: all.match(/mailto:([^"?]+)/i)?.[1],
     socials: [...new Set([...all.matchAll(/href="(https?:\/\/(?:www\.)?(?:instagram|facebook|tiktok)\.com\/[^"]+)"/gi)].map((m) => m[1]))],
     photos: images.map((u): Photo => ({ source: "website", url: u, owned: true })),
-    menuPdfs: [...new Set([...all.matchAll(/href="([^"]+\.pdf)"/gi)].map((m) => new URL(m[1], base).toString()))],
+    menuPdfs: pdfs,
   };
 }

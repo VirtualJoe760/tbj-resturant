@@ -23,20 +23,35 @@ export function checkImage(file: string) {
   return null;
 }
 
-/** Copies the owner's files into clients/<slug>/brand/ and records them relative to that folder. */
-export function collectBrandFiles(clientDir: string, b: { logo?: string; icon?: string; banners?: string[] }): Partial<IntakeBranding> {
+/**
+ * Puts the logo, app icon and photos in clients/<slug>/brand/ and records them relative to that
+ * folder. Each source is a file on this computer or an https link (e.g. the logo on their website).
+ */
+export async function collectBrandFiles(clientDir: string, b: { logo?: string; icon?: string; banners?: string[] }): Promise<Partial<IntakeBranding>> {
   const brandDir = path.join(clientDir, "brand");
   fs.mkdirSync(brandDir, { recursive: true });
-  const copy = (src: string, name: string) => {
+  const EXT: Record<string, string> = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp" };
+  const place = async (src: string, name: string) => {
+    if (/^https?:\/\//.test(src)) {
+      try {
+        const r = await fetch(src, { headers: { "user-agent": "Mozilla/5.0 (restaurant-intake)" } });
+        const type = (r.headers.get("content-type") ?? "").split(";")[0];
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (!r.ok || !EXT[type] || buf.length > MAX_BYTES) return undefined;
+        fs.writeFileSync(path.join(brandDir, name + EXT[type]), buf);
+        return `brand/${name}${EXT[type]}`;
+      } catch {
+        return undefined;
+      }
+    }
     const dest = `${name}${path.extname(src).toLowerCase().replace(".jpeg", ".jpg")}`;
     fs.copyFileSync(src, path.join(brandDir, dest));
     return `brand/${dest}`;
   };
-  return {
-    ...(b.logo ? { logoFile: copy(b.logo, "logo") } : {}),
-    ...(b.icon ? { iconFile: copy(b.icon, "app-icon") } : {}),
-    ...(b.banners?.length ? { bannerFiles: b.banners.map((f, i) => copy(f, `hero-${i + 1}`)) } : {}),
-  };
+  const logoFile = b.logo ? await place(b.logo, "logo") : undefined;
+  const iconFile = b.icon ? await place(b.icon, "app-icon") : undefined;
+  const bannerFiles = (await Promise.all((b.banners ?? []).map((f, i) => place(f, `hero-${i + 1}`)))).filter((x): x is string => !!x);
+  return { ...(logoFile ? { logoFile } : {}), ...(iconFile ? { iconFile } : {}), ...(bannerFiles.length ? { bannerFiles } : {}) };
 }
 
 /** Listing photos for the home page slideshow: the AI-picked hero first, then the room and food. */

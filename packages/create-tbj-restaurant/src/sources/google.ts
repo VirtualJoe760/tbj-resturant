@@ -19,11 +19,31 @@ export interface GooglePlace {
   photos: Photo[];
 }
 
-export async function searchPlaces(key: string, query: string): Promise<GooglePlace[]> {
+/**
+ * What a pasted Google Maps / Business link tells us: the place name and where it is on the map.
+ * Short links (maps.app.goo.gl, g.co/kgs) are followed to the full Maps or search address.
+ */
+export async function parseGoogleLink(link: string): Promise<{ url: string; name?: string; lat?: number; lng?: number }> {
+  let url = link.trim();
+  if (!/^https?:\/\//.test(url)) url = `https://${url}`;
+  try {
+    if (/goo\.gl|g\.co\/|share\.google/.test(url)) url = (await fetch(url, { redirect: "follow", headers: { "user-agent": "Mozilla/5.0" } })).url;
+  } catch {}
+  const u = (() => { try { return new URL(url); } catch { return null; } })();
+  const place = url.match(/\/maps\/place\/([^/@?]+)/)?.[1];
+  const name = place ? decodeURIComponent(place.replace(/\+/g, " ")) : u?.searchParams.get("q") ?? u?.searchParams.get("query") ?? undefined;
+  const at = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) ?? url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  return { url, name: name?.trim() || undefined, ...(at ? { lat: Number(at[1]), lng: Number(at[2]) } : {}) };
+}
+
+export async function searchPlaces(key: string, query: string, near?: { lat: number; lng: number }): Promise<GooglePlace[]> {
   const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
     headers: { "content-type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": FIELDS },
-    body: JSON.stringify({ textQuery: query, maxResultCount: 5 }),
+    body: JSON.stringify({
+      textQuery: query, maxResultCount: 5,
+      ...(near ? { locationBias: { circle: { center: { latitude: near.lat, longitude: near.lng }, radius: 1500 } } } : {}),
+    }),
   });
   if (!r.ok) throw new Error(`Google Places ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const data = (await r.json()) as { places?: any[] };

@@ -18,6 +18,8 @@ export async function yelpDetails(key: string, url: string) {
     address: (b.location?.display_address ?? []).join(", ") as string,
     categories: (b.categories ?? []).map((c: any) => c.title) as string[],
     price: b.price as string | undefined,
+    website: (b.attributes?.business_url ?? undefined) as string | undefined,
+    menuUrl: (b.attributes?.menu_url ?? undefined) as string | undefined,
     photos: (b.photos ?? []).map((u: string): Photo => ({ source: "yelp", url: u, attribution: "Yelp", owned: false })),
   };
 }

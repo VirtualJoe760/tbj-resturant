@@ -15,8 +15,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import * as p from "@clack/prompts";
 import { getKey, KEYS, keyStatus, saveKeys, type KeyName } from "./credentials.ts";
-import { searchPlaces, type GooglePlace } from "./sources/google.ts";
-import { yelpDetails } from "./sources/yelp.ts";
+import { parseGoogleLink, searchPlaces } from "./sources/google.ts";
+import { yelpAlias, yelpDetails } from "./sources/yelp.ts";
 import { readWebsite } from "./sources/website.ts";
 import { readMenu, sortPhotos } from "./sources/ai.ts";
 import { parsePlainMenu } from "./sources/manual-menu.ts";
@@ -26,7 +26,7 @@ import { checkImage, collectBrandFiles, FONT_CHOICES, pickBanners } from "./them
 import { guessMenuTimes, parseRange, PRESETS } from "./menu-times.ts";
 import { packageIdFor, writeStoreKit } from "./store.ts";
 import type { DeliverySettings, Intake, Menu, MenuTime, Photo } from "./types.ts";
-import { copyTemplate, finishProject, folderName, nextSteps, TEMPLATE } from "./create.ts";
+import { copyTemplate, finishProject, folderName, nextSteps, startInstall, TEMPLATE } from "./create.ts";
 
 const ROOT = process.env.CR_OUT ?? path.resolve(process.cwd(), "clients");
 const cancel = <T>(v: T | symbol): T => {
@@ -84,53 +84,78 @@ interface SwitchOptions {
   deploy: boolean;
   local: boolean;
   creating?: boolean; // a brand-new app: no deploy question, caller prints the next steps
+  beforeApply?: () => Promise<void>; // e.g. wait for the background install
 }
 
 async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions) {
   const ask = async <T>(key: keyof Answers, q: () => Promise<T | symbol>): Promise<T> => (scripted ? (scripted[key] as T) : cancel(await q()));
+  const clean = (v?: string | null) => v?.trim().replace(/^"|"$/g, "") || undefined;
+  /** An optional question: Enter skips it. */
+  const optional = async (key: keyof Answers, message: string, opts: { placeholder?: string; initialValue?: string; validate?: (v: string) => string | undefined } = {}) =>
+    clean(await ask<string>(key, () => p.text({ message, placeholder: opts.placeholder ?? "Enter to skip", initialValue: opts.initialValue, validate: (v) => (v && opts.validate ? opts.validate(v) : undefined) })));
+  /** Asks for a missing API key in a hidden prompt and saves it for next time. Enter skips. */
+  const askKey = async (k: KeyName, why: string) => {
+    if (scripted) return undefined;
+    p.log.info(why);
+    const v = clean(String(cancel(await p.password({ message: `${KEYS[k]} (hidden; saved for next time; Enter to skip)`, mask: "•" })) ?? ""));
+    if (v) saveKeys({ [k]: v });
+    return v;
+  };
   for (const k of ["ANTHROPIC_API_KEY"] as KeyName[]) if (!process.env[k] && getKey(k)) process.env[k] = getKey(k);
 
   if (!switching?.creating) p.intro(switching ? "Switch the demo site to a new business" : "New restaurant demo");
-  const name = await ask<string>("name", () => p.text({ message: "Restaurant name?", validate: (v) => (v ? undefined : "Required") }));
-  const city = await ask<string>("city", () => p.text({ message: "City?", placeholder: "Palm Desert, CA" }));
-  const intake: Intake = { slug: slugify(name), name, city, timezone: "America/Los_Angeles", links: {}, photos: [], features: {}, sources: { name: "manual" }, createdAt: new Date().toISOString() };
+  if (!scripted) p.log.info("Paste what you have and press Enter to skip the rest. Everything else is pulled from Google, Yelp and their website.");
+  const intake: Intake = { slug: "", name: scripted?.name ?? "", city: scripted?.city ?? "", timezone: "America/Los_Angeles", links: {}, photos: [], features: {}, sources: {}, createdAt: new Date().toISOString() };
   const spin = p.spinner();
 
-  // 1. Google Business listing
-  const gKey = getKey("GOOGLE_PLACES_API_KEY");
-  const hasGoogle = await ask<boolean>("google", () => p.confirm({ message: "Does it have a Google Business listing?" }));
-  if (hasGoogle) {
-    if (!gKey) p.log.warn("No Google Places key saved — run `create-tbj-restaurant login`. Skipping Google.");
-    else {
-      spin.start("Searching Google");
-      let places: GooglePlace[] = [];
-      try { places = await searchPlaces(gKey, `${name} ${city}`); } catch (e) { spin.stop((e as Error).message, 1); }
-      spin.stop(`${places.length} match${places.length === 1 ? "" : "es"} on Google`);
-      const idx = places.length <= 1 || scripted ? 0 : cancel(await p.select({ message: "Which one?", options: [...places.map((x, i) => ({ value: i, label: x.name, hint: x.address })), { value: -1, label: "None of these" }] }));
+  // 1. Where to look: their Google Business listing and Yelp page
+  const googleAns = await ask<string | boolean>("google", () => p.text({ message: "Google Business link? (in Google Maps: Share → Copy link)", placeholder: "Enter to skip" }));
+  const googleLink = typeof googleAns === "string" ? clean(googleAns) : undefined;
+  const yelpLink = clean(await ask<string>("yelp", () => p.text({ message: "Yelp link?", placeholder: "Enter to skip", validate: (v) => (!v || yelpAlias(v) ? undefined : "A yelp.com/biz/… link") })));
+
+  // 2. Google: address, phone, hours, website, photos
+  let gKey = getKey("GOOGLE_PLACES_API_KEY");
+  if ((googleLink || googleAns === true) && !gKey)
+    gKey = await askKey("GOOGLE_PLACES_API_KEY", "A Google Places key lets this pull the address, phone, hours, website and photos from Google (free at this volume: console.cloud.google.com → enable \"Places API (New)\" → Credentials → API key).");
+  if (googleLink) intake.links.google = googleLink;
+  if ((googleLink || googleAns === true) && gKey) {
+    spin.start("Looking them up on Google");
+    try {
+      const link = googleLink ? await parseGoogleLink(googleLink) : null;
+      const query = [link?.name ?? intake.name, link?.name ? "" : intake.city].filter(Boolean).join(" ");
+      const places = query ? await searchPlaces(gKey, query, link?.lat ? { lat: link.lat, lng: link.lng! } : undefined) : [];
+      spin.stop(places.length ? `Google: found ${places[0].name}` : "Google: no match from that link");
+      const idx = places.length <= 1 || scripted || link?.lat ? 0 : cancel(await p.select({ message: "Which one?", options: [...places.map((x, i) => ({ value: i, label: x.name, hint: x.address })), { value: -1, label: "None of these" }] }));
       const pick = idx === -1 ? undefined : places[idx];
       if (pick) {
         Object.assign(intake, { address: pick.address, phone: pick.phone, website: pick.website, location: pick.location, hours: pick.hours?.length ? pick.hours : undefined, cuisine: pick.category });
-        intake.links.google = pick.mapsUrl;
+        intake.name ||= pick.name;
+        intake.links.google = pick.mapsUrl ?? googleLink;
         intake.photos.push(...pick.photos);
-        for (const f of ["address", "phone", "website", "location", "hours"]) if ((intake as never)[f]) intake.sources[f] = "google";
+        for (const f of ["name", "address", "phone", "website", "location", "hours"]) if ((intake as never)[f]) intake.sources[f] = "google";
       }
+    } catch (e) {
+      spin.stop(`Google lookup failed: ${(e as Error).message}`, 1);
     }
   }
 
-  // 2. Yelp
-  const yelp = await ask<string>("yelp", async () => ((await p.confirm({ message: "Does it have a Yelp page?" })) === true ? p.text({ message: "Paste the Yelp link" }) : ""));
-  if (yelp) {
-    intake.links.yelp = yelp;
-    const yKey = getKey("YELP_API_KEY");
-    if (!yKey) p.log.info("No Yelp key — the Yelp link goes in the footer; details and photos come from other sources.");
-    else {
+  // 3. Yelp: photos and details (the link alone still goes in the footer)
+  let yelpMenuUrl: string | undefined;
+  if (yelpLink) {
+    intake.links.yelp = yelpLink;
+    let yKey = getKey("YELP_API_KEY");
+    if (!yKey) yKey = await askKey("YELP_API_KEY", "A Yelp API key adds Yelp photos and details (Yelp charges after a free trial; skipping is fine).");
+    if (yKey) {
+      spin.start("Reading Yelp");
       try {
-        spin.start("Reading Yelp");
-        const y = await yelpDetails(yKey, yelp);
+        const y = await yelpDetails(yKey, yelpLink);
         intake.photos.push(...y.photos);
+        intake.name ||= y.name;
         intake.address ??= y.address;
         intake.phone ??= y.phone;
         intake.cuisine ??= y.categories[0];
+        intake.website ??= y.website;
+        yelpMenuUrl = y.menuUrl;
         spin.stop(`Yelp: ${y.photos.length} photos, ${y.categories.join(", ")}`);
       } catch (e) {
         spin.stop((e as Error).message, 1);
@@ -138,66 +163,81 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     }
   }
 
-  // 3. Website
-  const website = await ask<string>("website", async () => {
-    const yes = await p.confirm({ message: `Does it have a website?${intake.website ? ` (Google lists ${intake.website})` : ""}` });
-    if (yes !== true) return "";
-    return intake.website ?? p.text({ message: "Website address" });
-  });
-  let siteText = "";
+  // 4. Their website: menu, logo, app icon, colors, photos, email
+  const website = intake.website ?? (await optional("website", "Website?"));
+  let siteMenu: { text: string; pdf?: string } | undefined;
+  let found: { logo?: string; icon?: string } = {};
   if (website) {
-    spin.start("Reading the website");
+    spin.start("Reading their website");
     try {
       const w = await readWebsite(website);
       intake.website = w.url;
       intake.email ??= w.email;
-      if (w.themeColor) intake.theme = { primary: w.themeColor, header: "#18181b" };
+      if (w.themeColor && /^#[0-9a-f]{6}$/i.test(w.themeColor)) intake.theme = { primary: w.themeColor, header: "#18181b" };
       intake.photos.push(...w.photos);
-      siteText = w.text;
-      spin.stop(`Website: ${w.photos.length} images${w.menuPdfs.length ? `, ${w.menuPdfs.length} menu PDF` : ""}`);
-      if (w.menuPdfs[0]) intake.sources.menuPdf = w.menuPdfs[0];
+      found = { logo: w.logoUrl, icon: w.iconUrl };
+      if (w.hasMenu) siteMenu = { text: w.text, pdf: w.menuPdfs[0] };
+      spin.stop(`Website: ${w.hasMenu ? "menu found" : "no menu found"}${w.logoUrl ? ", logo" : ""}${w.iconUrl ? ", app icon" : ""}, ${w.photos.length} images`);
     } catch (e) {
       spin.stop(`Couldn't read the website: ${(e as Error).message}`, 1);
     }
   }
-
-  // 4. Manual intake when nothing was found
-  if (!hasGoogle && !yelp && !website) {
-    p.log.step("No listing or website — quick manual intake");
-    intake.address = await ask<string>("address", () => p.text({ message: "Address?", validate: (v) => (v ? undefined : "Required") }));
-    intake.phone = await ask<string>("phone", () => p.text({ message: "Phone?", validate: (v) => (v ? undefined : "Required") }));
-    intake.email = await ask<string>("email", () => p.text({ message: "Owner email?", validate: (v) => (v?.includes("@") ? undefined : "Needs an email") }));
-    Object.assign(intake.sources, { address: "manual", phone: "manual", email: "manual" });
+  if (!siteMenu && yelpMenuUrl) {
+    try {
+      const m = yelpMenuUrl.toLowerCase().endsWith(".pdf") ? { text: "", pdf: yelpMenuUrl } : await readWebsite(yelpMenuUrl).then((w) => (w.hasMenu ? { text: w.text, pdf: w.menuPdfs[0] } : undefined));
+      siteMenu = m;
+    } catch {}
   }
 
-  // 5. Menu
-  const aiReady = !!process.env.ANTHROPIC_API_KEY;
+  // 5. Basics still missing (only these are asked)
+  if (!intake.name) intake.name = String(cancel(await p.text({ message: "Restaurant name?", validate: (v) => (v ? undefined : "Required") })));
+  intake.slug = slugify(intake.name);
+  intake.sources.name ??= "manual";
+  intake.city ||= intake.address?.split(",").slice(-2).join(",").replace(/\d{5}(-\d{4})?/, "").trim() || (await optional("city", "City?", { placeholder: "Palm Desert, CA" })) || "";
+  intake.address ??= await optional("address", "Address? (needed for delivery and directions)");
+  intake.phone ??= await optional("phone", "Phone?");
+  intake.email ??= await optional("email", "Owner email?", { validate: (v) => (v.includes("@") ? undefined : "Needs an email") });
+  for (const f of ["address", "phone", "email"]) if ((intake as never)[f]) intake.sources[f] ??= "manual";
+
+  // 6. Menu: from their website (or Yelp's menu link) when there is one, otherwise a PDF, photos or text
   let menu: Menu | undefined;
-  const menuFiles = scripted?.menuFiles ?? [];
   let menuText = scripted?.menuText ?? "";
-  if (!scripted) {
+  const menuFiles = scripted?.menuFiles ?? [];
+  let menuUrls: string[] = [];
+  const menuFromSite = !menuText && !menuFiles.length && !!siteMenu;
+  if (menuFromSite) {
+    menuText = siteMenu!.text;
+    if (siteMenu!.pdf) menuUrls = [siteMenu!.pdf];
+    if (!scripted) p.log.success(`Using the menu from ${intake.website ?? "Yelp"}.`);
+  } else if (!scripted) {
     const src = cancel(await p.select({
-      message: "Where's the menu?",
+      message: website ? "No menu found online. Add one?" : "Add the menu?",
       options: [
-        ...(siteText || intake.sources.menuPdf ? [{ value: "site", label: "Found on the website" }] : []),
         { value: "files", label: "PDF or photos on this computer" },
         { value: "paste", label: "Paste the menu text" },
+        { value: "skip", label: "Skip (add it later in Admin → Menu)" },
       ],
     }));
-    if (src === "site") menuText = siteText;
-    if (src === "files") menuFiles.push(...String(cancel(await p.text({ message: "File paths (comma separated)" }))).split(",").map((s) => s.trim()).filter(Boolean));
+    if (src === "files") menuFiles.push(...String(cancel(await p.text({ message: "File paths (comma separated)" }))).split(",").map((s) => clean(s)).filter((s): s is string => !!s));
     if (src === "paste") menuText = String(cancel(await p.text({ message: "Paste the menu (category lines, then 'Item $9.95 - description')" })));
-  } else if (!menuText && siteText) menuText = siteText;
-
-  spin.start(aiReady ? "Claude is reading the menu" : "Reading the menu (no AI key — simple format only)");
-  try {
-    if (aiReady) menu = await readMenu({ text: menuText || undefined, files: menuFiles, urls: intake.sources.menuPdf && !menuText ? [intake.sources.menuPdf] : [] });
-    else if (menuText) menu = parsePlainMenu(menuText);
-    const n = menu?.categories.reduce((a, c) => a + c.items.length, 0) ?? 0;
-    spin.stop(`Menu: ${n} items in ${menu?.categories.length ?? 0} categories`);
-    if (menu) intake.sources.menu = aiReady ? "ai" : "manual";
-  } catch (e) {
-    spin.stop(`Menu import failed: ${(e as Error).message}`, 1);
+  }
+  if ((menuFiles.length || menuUrls.length || (menuText && !/\$\s?\d/.test(menuText.slice(0, 2000)))) && !process.env.ANTHROPIC_API_KEY) {
+    const k = await askKey("ANTHROPIC_API_KEY", "Claude reads menus from websites, PDFs and photos into the menu (sizes, toppings, prices). That needs an Anthropic API key (console.anthropic.com → API keys).");
+    if (k) process.env.ANTHROPIC_API_KEY = k;
+  }
+  const aiReady = !!process.env.ANTHROPIC_API_KEY;
+  if (menuText || menuFiles.length || menuUrls.length) {
+    spin.start(aiReady ? "Claude is reading the menu" : "Reading the menu (no AI key — simple format only)");
+    try {
+      if (aiReady) menu = await readMenu({ text: menuText || undefined, files: menuFiles, urls: menuUrls });
+      // a whole web page isn't a typed menu: without Claude, leave it for Admin → Menu
+      else if (menuText && !menuFromSite) menu = parsePlainMenu(menuText);
+      const n = menu?.categories.reduce((a, c) => a + c.items.length, 0) ?? 0;
+      spin.stop(menu ? `Menu: ${n} items in ${menu.categories.length} sections` : "Menu skipped: add an Anthropic key (create-tbj-resturant login) to read it from their website, or add it in Admin → Menu");
+      if (menu) intake.sources.menu = aiReady ? "ai" : "manual";
+    } catch (e) {
+      spin.stop(`Menu import failed: ${(e as Error).message}`, 1);
+    }
   }
   intake.menu = menu;
 
@@ -235,33 +275,48 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
 
   intake.timezone = timezoneFor(intake.address);
 
-  // 6b. The look → src/config/business-theme.ts (logo, app icon, home page photos, fonts, colors)
+  // 6b. The look → src/config/business-theme.ts. Starts from what was found (logo and icon from
+  // their website, listing photos, site color); anything can be replaced with a file.
   const clientsDir = switching ? path.join(switching.root, "clients") : ROOT;
   const clientDir = path.join(clientsDir, intake.slug);
-  const clean = (v?: string) => v?.trim().replace(/^"|"$/g, "") || undefined;
-  const imageFile = (msg: string, key: "logo" | "icon") =>
-    ask<string>(key, () => p.text({ message: msg, placeholder: "Enter to skip", validate: (v) => (clean(v) ? checkImage(clean(v)!) ?? undefined : undefined) }));
-  const logo = clean(await imageFile("Logo file? (PNG with a see-through background works best)", "logo"));
-  const icon = clean(await imageFile("App icon file? (square, 1024 × 1024; Enter = first letter on the brand colors)", "icon"));
   const listingBanners = pickBanners(intake.photos);
-  const splitFiles = (v: string) => v.split(",").map((f) => clean(f)).filter((f): f is string => !!f);
-  const ownPhotos = scripted ? scripted.photos ?? [] : splitFiles(String(cancel(await p.text({
-    message: `Home page photos? File paths, comma separated${listingBanners.length ? ` (Enter = ${listingBanners.length} listing photos for the demo)` : ""}`,
-    placeholder: "Enter to skip",
-    validate: (v) => splitFiles(v ?? "").map((f) => (checkImage(f) ? `${f}: ${checkImage(f)}` : "")).find(Boolean) || undefined,
-  }))));
+  const foundColor = intake.theme?.primary;
+  if (!scripted)
+    p.log.info([
+      `Look so far: logo ${found.logo ? "from their website" : "none (name in text)"}`,
+      `app icon ${found.icon ? "from their website" : "first letter on the brand colors"}`,
+      `${listingBanners.length} home page photos`,
+      `accent ${foundColor ?? "#F5A524 (default)"}`,
+    ].join(" · "));
+  const change = scripted ? true : cancel(await p.confirm({ message: "Add or change the logo, app icon, photos, colors or fonts?", initialValue: !found.logo }));
+  let logo: string | undefined, icon: string | undefined, ownPhotos: string[] = [];
+  let accent: string | undefined, header: string | undefined, headingFont = "system", bodyFont = "system";
+  if (change) {
+    const imageCheck = (v: string) => checkImage(clean(v)!) ?? undefined;
+    const keep = (has?: string) => (has ? "Enter to keep the one we found" : "Enter to skip");
+    logo = await optional("logo", "Logo file? (PNG with a see-through background works best)", { placeholder: keep(found.logo), validate: imageCheck });
+    icon = await optional("icon", "App icon file? (square, 1024 × 1024)", { placeholder: keep(found.icon), validate: imageCheck });
+    const splitFiles = (v: string) => v.split(",").map((f) => clean(f)).filter((f): f is string => !!f);
+    ownPhotos = scripted ? scripted.photos ?? [] : splitFiles((await optional("photos", "Home page photos? File paths, comma separated", {
+      placeholder: listingBanners.length ? `Enter to keep the ${listingBanners.length} listing photos` : "Enter to skip",
+      validate: (v) => splitFiles(v).map((f) => (checkImage(f) ? `${f}: ${checkImage(f)}` : "")).find(Boolean) || undefined,
+    })) ?? "");
+    const hex = (v: string) => (/^#[0-9a-f]{6}$/i.test(v) ? undefined : "A color like #F5A524");
+    accent = await optional("accent", "Accent color (buttons, highlights)?", { initialValue: scripted ? undefined : foundColor ?? "#F5A524", validate: hex });
+    header = await optional("header", "Header color (top bars, app background)?", { initialValue: scripted ? undefined : "#18181b", validate: hex });
+    const fontOptions = FONT_CHOICES.map(([value, label]) => ({ value, label }));
+    headingFont = (await ask<string>("headingFont", () => p.select({ message: "Heading font (name, page titles)?", options: fontOptions, initialValue: "system" }))) ?? "system";
+    bodyFont = (await ask<string>("bodyFont", () => p.select({ message: "Body font?", options: fontOptions, initialValue: "system" }))) ?? "system";
+  }
   for (const f of [logo, icon, ...ownPhotos]) if (f && checkImage(f)) throw new Error(`${f}: ${checkImage(f)}`);
-  const hex = (v?: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? undefined : "A color like #F5A524");
-  const accent = await ask<string>("accent", () => p.text({ message: "Accent color (buttons, highlights)?", initialValue: intake.theme?.primary ?? "#F5A524", validate: hex }));
-  const header = await ask<string>("header", () => p.text({ message: "Header color (top bars, app background)?", initialValue: intake.theme?.header ?? "#18181b", validate: hex }));
-  const fontOptions = FONT_CHOICES.map(([value, label]) => ({ value, label }));
-  const headingFont = await ask<string>("headingFont", () => p.select({ message: "Heading font (name, page titles)?", options: fontOptions, initialValue: "system" }));
-  const bodyFont = await ask<string>("bodyFont", () => p.select({ message: "Body font?", options: fontOptions, initialValue: "system" }));
+  spin.start("Saving the logo, icon and photos");
+  const files = await collectBrandFiles(clientDir, { logo: logo ?? found.logo, icon: icon ?? found.icon, banners: ownPhotos });
+  spin.stop(`Saved ${[files.logoFile && "logo", files.iconFile && "app icon", files.bannerFiles?.length && `${files.bannerFiles.length} photos`].filter(Boolean).join(", ") || "no image files (defaults used)"}`);
   intake.branding = {
-    ...collectBrandFiles(clientDir, { logo, icon, banners: ownPhotos }),
+    ...files,
     banners: listingBanners,
-    fonts: { heading: headingFont ?? "system", body: bodyFont ?? "system" },
-    colors: { accent: accent ?? intake.theme?.primary, header: header ?? intake.theme?.header },
+    fonts: { heading: headingFont, body: bodyFont },
+    colors: { accent: accent ?? foundColor, header: header ?? intake.theme?.header },
   };
   intake.app = { androidPackage: scripted?.androidPackage ?? packageIdFor(domainFor(intake)) };
 
@@ -299,7 +354,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     `Website   ${intake.website ?? "—"}`, `Menu      ${menu ? menu.categories.map((c) => `${c.name} (${c.items.length})`).join(", ") : "none — add in admin"}`,
     `Photos    ${intake.photos.length} (${intake.photos.filter((x) => !x.owned).length} from listings: demo only, credited)`,
     `Times     ${intake.menuTimes?.length ? intake.menuTimes.map((t) => `${t.name} ${t.startsAt}–${t.endsAt} (${t.sections.join(", ")})`).join("; ") : "all sections whenever open"}`,
-    `Look      logo ${intake.branding.logoFile ? "yes" : "none"} · icon ${intake.branding.iconFile ? "yes" : "letter"} · ${intake.branding.bannerFiles?.length ?? 0} own + ${listingBanners.length} listing photos · fonts ${intake.branding.fonts?.heading}/${intake.branding.fonts?.body} · ${intake.branding.colors?.accent}`,
+    `Look      logo ${intake.branding.logoFile ? "yes" : "none"} · icon ${intake.branding.iconFile ? "yes" : "letter"} · ${intake.branding.bannerFiles?.length ?? 0} own + ${listingBanners.length} listing photos · fonts ${intake.branding.fonts?.heading}/${intake.branding.fonts?.body} · ${intake.branding.colors?.accent ?? "#F5A524"}`,
     `Delivery  ${intake.delivery ? `${intake.delivery.provider === "uber" ? "Uber" : "DoorDash"} drivers · customer pays ${intake.delivery.customerFee === "quote" ? "the quoted fee" : `$${(intake.delivery.customerFee / 100).toFixed(2)}`} · $${intake.delivery.minOrderCents / 100} minimum` : "pickup only"}`,
     `App id    ${intake.app.androidPackage}`,
     ...(guesses.length ? ["", "Check with the owner:", ...guesses.map((g) => `  • ${g}`)] : []),
@@ -309,6 +364,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   const dir = writeClient(clientsDir, intake, guesses);
   if (!switching) return p.outro(`Wrote ${path.relative(process.cwd(), dir)}. Next, inside the app repo: \`create-tbj-restaurant switch --answers\` or \`pnpm import-client ${intake.slug}\`.`);
 
+  await switching.beforeApply?.();
   const deploy = !switching.creating && (switching.deploy || (!scripted && cancel(await p.confirm({ message: "Push it so the Vercel preview site switches too?" })) === true));
   try {
     // The live preview's database is updated during the Vercel build (scripts/setup-db.ts),
@@ -409,12 +465,23 @@ async function createApp(folderArg?: string) {
   }))));
   const dir = path.resolve(folder);
   try {
-    copyTemplate(dir, flag("template") ?? TEMPLATE);
+    await copyTemplate(dir, flag("template") ?? TEMPLATE);
   } catch (e) {
     p.cancel((e as Error).message);
     process.exit(1);
   }
-  const intake = await newRestaurant(answers, { root: dir, deploy: false, local: true, creating: true });
+  // install while the questions are answered; wait for it (with a timer) before loading the menu
+  const install = startInstall(dir);
+  if (!answers) p.log.info("Installing in the background while you answer the questions.");
+  const finish = async () => {
+    try {
+      await install.finish();
+    } catch (e) {
+      p.cancel(`Install failed:\n${(e as Error).message}`);
+      process.exit(1);
+    }
+  };
+  const intake = await newRestaurant(answers, { root: dir, deploy: false, local: true, creating: true, beforeApply: finish });
   if (!intake) return;
   const repo = await finishProject(dir, intake.name, folderName(intake.name), !answers);
   p.note(nextSteps(dir, repo), "Next");

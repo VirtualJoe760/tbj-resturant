@@ -53,9 +53,7 @@ export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
   const hours: { weekday: number; opensAt: string; closesAt: string }[] = intake.hours?.length ? intake.hours : [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, opensAt: "11:00", closesAt: "21:00" }));
   await db.delete(s.locationHours).where(eq(s.locationHours.locationId, "main"));
   await db.insert(s.locationHours).values(hours.map((h) => ({ locationId: "main", ...h })));
-  if (!menu) return { items: 0 };
-
-  // replace the menu (featured items and item links cascade)
+  // replace the menu (featured items and item links cascade); no menu yet = start empty, added in Admin → Menu
   await db.delete(s.featuredItems);
   await db.delete(s.itemModifierGroups);
   await db.delete(s.items);
@@ -65,13 +63,14 @@ export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
   await db.delete(s.dayparts);
   // menu times: what the intake says, else guessed from section names ("Breakfast", "Lunch specials")
   const times: MenuTime[] = intake.menuTimes?.length ? intake.menuTimes
-    : DEFAULT_DAYPARTS.map((d) => ({ name: d.name, startsAt: d.startsAt, endsAt: d.endsAt, sections: menu.categories.map((c) => c.name).filter((n) => d.match.test(n)) })).filter((t) => t.sections.length);
+    : DEFAULT_DAYPARTS.map((d) => ({ name: d.name, startsAt: d.startsAt, endsAt: d.endsAt, sections: (menu?.categories ?? []).map((c) => c.name).filter((n) => d.match.test(n)) })).filter((t) => t.sections.length);
   const daypartsFor: Record<string, string[]> = {};
   for (const [i, t] of times.entries()) {
     const [dp] = await db.insert(s.dayparts).values({ name: t.name, startsAt: t.startsAt, endsAt: t.endsAt, days: t.days ?? [0, 1, 2, 3, 4, 5, 6], sort: i }).returning({ id: s.dayparts.id });
     for (const sec of t.sections) (daypartsFor[sec.toLowerCase()] ??= []).push(dp.id);
   }
   let n = 0;
+  if (!menu) return { items: 0 };
   for (const [ci, c] of menu.categories.entries()) {
     const catId = slug(c.name) || `cat-${ci}`;
     await db.insert(s.categories).values({ id: catId, name: c.name, sort: ci, daypartIds: daypartsFor[c.name.toLowerCase()] ?? [] }).onConflictDoNothing();
