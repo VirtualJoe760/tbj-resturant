@@ -50,4 +50,23 @@ describe("import-client", () => {
     expect(cats.find((c) => c.name === "Breakfast")!.daypartIds).toEqual([bf.id]);
     expect(cats.find((c) => c.name === "Burgers")!.daypartIds).toEqual([]);
   });
+
+  it("puts matched listing photos on menu items (Google through our proxy, never a key)", async () => {
+    const db = drizzle(new PGlite(), { schema });
+    await migrate(db, { migrationsFolder: path.join(__dirname, "../../drizzle") });
+    await seedIfEmpty(db);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "intake-"));
+    fs.writeFileSync(path.join(dir, "intake.json"), JSON.stringify({ slug: "black-cat", name: "Black Cat Pizza", domain: "blackcatpizza.com", city: "Palm Desert", links: {} }));
+    const item = { description: "", price_cents: 3100, orderable_online: true, tags: [], modifier_groups: [] };
+    fs.writeFileSync(path.join(dir, "menu.json"), JSON.stringify({ categories: [{ name: "Detroit pies", items: [{ ...item, name: "Pepperoni & Hot Honey" }, { ...item, name: "Margherita" }] }], guesses: [] }));
+    fs.writeFileSync(path.join(dir, "photos.json"), JSON.stringify([
+      { source: "yelp", url: "https://s3-media.yelpcdn.com/a.jpg", role: "item", itemName: "Pepperoni & Hot Honey" },
+      { source: "google", url: "https://places.googleapis.com/v1/places/x/photos/y/media", ref: "places/x/photos/y", role: "item", itemName: "pepperoni & hot honey" },
+      { source: "website", url: "https://x.com/p.jpg?key=SECRET", role: "item", itemName: "Margherita" },
+    ]));
+    await importClient(db, dir);
+    const items = await db.select().from(schema.items);
+    expect(items.find((i) => i.name === "Pepperoni & Hot Honey")!.images).toEqual(["https://s3-media.yelpcdn.com/a.jpg", "/api/places-photo?name=places/x/photos/y"]);
+    expect(items.find((i) => i.name === "Margherita")!.images).toEqual([]);
+  });
 });

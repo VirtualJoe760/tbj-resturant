@@ -30,7 +30,8 @@ export async function saveBranding(input: z.infer<typeof BrandingInput>): Promis
   const parsed = BrandingInput.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Check the colors and images." };
   const b = parsed.data;
-  const brandingOverrides = diffBranding({ ...b, theme: { ...b.theme, primaryInk: inkFor(b.theme.primary) } }, fromBusinessTheme(businessTheme));
+  const base = fromBusinessTheme(businessTheme);
+  const brandingOverrides = diffBranding({ ...b, gallery: base.gallery, theme: { ...b.theme, primaryInk: inkFor(b.theme.primary) } }, base);
   const db = await getDb();
   const row = await db.query.brand.findFirst({ where: eq(s.brand.id, "brand") });
   await db.update(s.brand).set({ settings: { ...(row?.settings ?? {}), brandingOverrides } }).where(eq(s.brand.id, "brand"));

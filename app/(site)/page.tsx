@@ -14,6 +14,7 @@ export default async function Home() {
     <>
       <section className="hero">
         {brand.banners.length > 0 && <HeroBanners urls={brand.banners} />}
+        {brand.banners.some((u) => /^https?:|^\/api\/places-photo/.test(u)) && <span className="photo-credit">Photos: {[brand.banners.some((u) => u.includes("places-photo")) && "Google", brand.banners.some((u) => u.includes("yelp")) && "Yelp"].filter(Boolean).join(" & ") || "listings"}</span>}
         <div className={`status ${location.open ? "open" : "closed"}`}>
           {location.open ? "● Open now" : "● Closed now"} · {location.hoursSummary[0]}
         </div>
@@ -57,6 +58,21 @@ export default async function Home() {
               </div>
             );
           })}
+        </>
+      )}
+
+      {brand.gallery.length > 0 && (
+        <>
+          <div className="sec">Photos</div>
+          <div className="scroller gallery">
+            {brand.gallery.map((g) => (
+              <figure key={g.src}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={g.src} alt={g.alt ?? ""} loading="lazy" />
+                {g.credit && <figcaption>{g.credit}</figcaption>}
+              </figure>
+            ))}
+          </div>
         </>
       )}
 

@@ -354,3 +354,9 @@ button { font: inherit; }
 
 .ticket .drv { margin: 6px 0; padding: 4px 8px; border-radius: 8px; background: #dbeafe; color: #1e3a8a; font-weight: 700; font-size: 13px; }
 .ticket .drv.bad { background: #fee2e2; color: #991b1b; }
+
+/* home page photo gallery (listing photos are credited) */
+.scroller.gallery figure { flex: 0 0 240px; margin: 0; scroll-snap-align: start; }
+.scroller.gallery img { width: 240px; height: 180px; object-fit: cover; border-radius: 14px; display: block; background: var(--line); }
+.scroller.gallery figcaption { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.hero .photo-credit { position: absolute; right: 10px; bottom: 6px; font-size: 10px; color: rgb(255 255 255 / .7); }

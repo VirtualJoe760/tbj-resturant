@@ -25,9 +25,10 @@ function fileBlock(file: string): Block {
   return { type: "image", source: { type: "base64", media_type: media, data } };
 }
 
-export async function readMenu(input: { text?: string; files?: string[]; urls?: string[] }): Promise<Menu> {
+export async function readMenu(input: { text?: string; files?: string[]; urls?: string[]; images?: Block[] }): Promise<Menu> {
   const client = new Anthropic();
   const content: Block[] = [
+    ...(input.images ?? []),
     ...(input.files ?? []).map(fileBlock),
     ...(input.urls ?? []).map((url): Block => (url.endsWith(".pdf") ? { type: "document", source: { type: "url", url } } : { type: "image", source: { type: "url", url } })),
     { type: "text", text: `${MENU_INSTRUCTIONS}${input.text ? `\n\nMenu text:\n${input.text}` : ""}` },
@@ -43,17 +44,17 @@ export async function readMenu(input: { text?: string; files?: string[]; urls?: 
 const PhotoTags = z.object({
   photos: z.array(z.object({
     index: z.number().int(),
-    role: z.enum(["hero", "item", "gallery", "event", "skip"]).describe("skip = blurry, dark, duplicate, or mostly a menu/sign"),
-    item_name: z.string().describe("menu item shown, exactly as named in the list, or empty"),
+    role: z.enum(["hero", "item", "gallery", "event", "menu", "skip"]).describe("item = one dish or drink up close; menu = a readable printed menu, menu board or price list; skip = blurry, dark, duplicate or a plain sign"),
+    item_name: z.string().describe("menu item shown, exactly as named in the list when a list is given, or empty"),
+    dish: z.string().describe("for food or drink photos: what it is in a few plain words, e.g. 'pepperoni pizza with hot honey'; otherwise empty"),
     tags: z.array(z.string()),
     faces: z.boolean().describe("recognizable people in frame"),
     quality: z.number().int().describe("1-10"),
   })),
 });
 
-/** Tags each photo and picks spots: one hero, menu-item matches, gallery, events. */
 /** Google photos need our key, which must not leave this computer in a URL: send the bytes instead. */
-async function photoBlock(p: Photo, googleKey?: string): Promise<Block> {
+export async function photoBlock(p: Photo, googleKey?: string): Promise<Block> {
   if (p.source === "google" && googleKey) {
     const r = await fetch(p.url, { headers: { "X-Goog-Api-Key": googleKey } });
     const type = r.headers.get("content-type") ?? "image/jpeg";
@@ -62,17 +63,18 @@ async function photoBlock(p: Photo, googleKey?: string): Promise<Block> {
   return { type: "image", source: { type: "url", url: p.url } };
 }
 
+/** Tags each photo and picks spots: one hero, dishes, menu photos, gallery, events. */
 export async function sortPhotos(photos: Photo[], itemNames: string[], googleKey?: string): Promise<Photo[]> {
   if (!photos.length) return photos;
   const client = new Anthropic();
   const batch = photos.slice(0, 20);
   const content: Block[] = (await Promise.all(batch.map(async (p, i): Promise<Block[]> => [{ type: "text", text: `Photo ${i}:` }, await photoBlock(p, googleKey)]))).flat();
-  content.push({ type: "text", text: `These are photos of a restaurant. Menu items: ${itemNames.join("; ")}.\nFor each photo give its role (exactly one "hero": the best wide food or interior shot without recognizable faces), the menu item it shows if any, tags (food, drinks, interior, exterior, crowd, stage, logo), whether faces are recognizable, and a quality score.` });
+  content.push({ type: "text", text: `These are photos of a restaurant from its Google and Yelp listings.${itemNames.length ? ` Menu items: ${itemNames.join("; ")}.` : ""}\nFor each photo give its role (exactly one "hero": the best wide, appetizing food or room shot without recognizable faces; "menu" for photos of the menu itself), the menu item it shows if any, the dish in plain words, tags (food, drinks, interior, exterior, crowd, stage, logo), whether faces are recognizable, and a quality score.` });
   const msg = await client.messages.parse({ model: MODEL, max_tokens: 16000, output_config: { effort: "low", format: zodOutputFormat(PhotoTags) }, messages: [{ role: "user", content }] });
   const tags = msg.parsed_output?.photos ?? [];
   return batch.map((p, i) => {
     const t = tags.find((x) => x.index === i);
     if (!t) return p;
-    return { ...p, role: t.role === "hero" && t.faces ? "gallery" : t.role, itemName: t.item_name || undefined, tags: t.tags };
+    return { ...p, role: t.role === "hero" && t.faces ? "gallery" : t.role, itemName: t.item_name || undefined, dish: t.dish || undefined, tags: t.tags, quality: t.quality };
   });
 }

@@ -102,3 +102,13 @@ export function nextSteps(dir: string, repo: string) {
     "Change the look any time in src/config/business-theme.ts (images in public/brand/).",
   ].join("\n");
 }
+
+/** Adds NAME=value to the app's .env.local (git-ignored) unless it's already there. Never printed. */
+export function ensureEnv(root: string, name: string, value: string) {
+  const file = path.join(root, ".env.local");
+  const cur = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+  if (new RegExp(`^${name}=.+`, "m").test(cur)) return false;
+  const sep = cur && !cur.endsWith("\n") ? "\n" : "";
+  fs.writeFileSync(file, `${cur}${sep}${name}=${value}\n`);
+  return true;
+}

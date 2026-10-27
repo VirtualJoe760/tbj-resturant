@@ -1,6 +1,6 @@
 // The restaurant's look. src/config/business-theme.ts is the source of truth; Admin → Branding
 // can layer owner changes on top (stored as overrides in brand.settings), each one resettable.
-import type { BusinessTheme } from "../config/types";
+import type { BusinessTheme, GalleryPhoto } from "../config/types";
 
 export interface Theme { primary: string; primaryInk: string; header: string; bg: string }
 
@@ -11,10 +11,11 @@ export interface Branding {
   logoUrl: string | null;
   iconUrl: string | null; // "/brand/app-icon.png" from the theme file, or "/media/<id>" uploaded in admin
   banners: string[]; // image URLs, shown as a slideshow behind the home page header
+  gallery: GalleryPhoto[]; // the "Photos" strip on the home page (from business-theme.ts)
 }
 
 /** What Admin → Branding saves: only the fields the owner changed from business-theme.ts. */
-export type BrandingOverrides = Partial<Omit<Branding, "theme">> & { theme?: Partial<Omit<Theme, "primaryInk">> };
+export type BrandingOverrides = Partial<Omit<Branding, "theme" | "gallery">> & { theme?: Partial<Omit<Theme, "primaryInk">> };
 
 export interface FontChoice { id: string; label: string; stack: string; google?: string }
 
@@ -61,6 +62,7 @@ export function fromBusinessTheme(t: BusinessTheme): Branding {
     logoUrl: t.logo,
     iconUrl: t.appIcon,
     banners: t.heroBanners,
+    gallery: t.gallery ?? [],
   };
 }
 
@@ -82,6 +84,7 @@ export function resolveBranding(overrides: BrandingOverrides | undefined, base: 
     logoUrl: o.logoUrl !== undefined ? o.logoUrl : base.logoUrl,
     iconUrl: o.iconUrl !== undefined ? o.iconUrl : base.iconUrl,
     banners: o.banners ?? base.banners,
+    gallery: base.gallery,
   };
 }
 

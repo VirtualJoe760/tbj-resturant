@@ -33,11 +33,14 @@ export interface RestaurantConfig {
   };
 }
 
+export interface GalleryPhoto { src: string; credit?: string; alt?: string }
+
 // The restaurant's look; values live in business-theme.ts (one file, plus images in public/brand/).
 export interface BusinessTheme {
   logo: string | null;
   appIcon: string | null;
   heroBanners: string[];
+  gallery?: GalleryPhoto[];
   fonts: { heading: string; body: string };
   colors: { accent: string; header: string; background: string };
 }

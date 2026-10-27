@@ -29,9 +29,11 @@ export interface Photo {
   ref?: string; // Google photo name ("places/…/photos/…"); fetched with the key in a header
   attribution?: string;
   owned: boolean; // false = third-party photo, demo only (docs/15-intake-and-demo.md)
-  role?: "hero" | "item" | "gallery" | "event" | "skip";
-  itemName?: string;
+  role?: "hero" | "item" | "gallery" | "event" | "menu" | "skip"; // menu = a photo of the printed menu / menu board
+  itemName?: string; // the menu item it shows, once matched
+  dish?: string; // what food it shows, in plain words ("pepperoni pizza with hot honey")
   tags?: string[];
+  quality?: number; // 1-10 from the photo sorter
 }
 
 /** The look; becomes src/config/business-theme.ts. Files are relative to clients/<slug>/. */
@@ -40,6 +42,7 @@ export interface IntakeBranding {
   iconFile?: string; // "brand/app-icon.png"
   bannerFiles?: string[]; // "brand/hero-1.jpg"
   banners?: string[]; // listing photo URLs (no keys), used when there are no banner files
+  gallery?: { src: string; credit?: string; alt?: string }[]; // more photos for the home page
   fonts?: { heading: string; body: string };
   colors?: { accent?: string; header?: string; background?: string };
 }

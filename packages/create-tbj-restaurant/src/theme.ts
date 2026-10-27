@@ -54,13 +54,49 @@ export async function collectBrandFiles(clientDir: string, b: { logo?: string; i
   return { ...(logoFile ? { logoFile } : {}), ...(iconFile ? { iconFile } : {}), ...(bannerFiles.length ? { bannerFiles } : {}) };
 }
 
+/** Where the site loads a listing photo from. Google photos go through the site's own server so
+ * the API key never reaches a page; anything carrying a key is refused. */
+export function photoSrc(p: Photo) {
+  const u = p.source === "google" && p.ref ? `/api/places-photo?name=${p.ref}` : p.url;
+  return u.startsWith("/") || (u.startsWith("https://") && !/[?&]key=/i.test(u)) ? u : undefined;
+}
+
+const usable = (p: Photo) => p.role !== "skip" && p.role !== "menu" && !!photoSrc(p);
+
 /** Listing photos for the home page slideshow: the AI-picked hero first, then the room and food. */
 export function pickBanners(photos: Photo[], max = 5) {
   const rank = (p: Photo) => (p.role === "hero" ? 0 : p.tags?.includes("interior") ? 1 : p.role === "gallery" ? 2 : p.role === "item" ? 3 : 4);
-  return photos.filter((p) => p.role !== "skip").sort((a, b) => rank(a) - rank(b)).slice(0, max)
-    // Google photos go through the site's own server so the API key never reaches a page
-    .map((p) => (p.source === "google" && p.ref ? `/api/places-photo?name=${p.ref}` : p.url))
-    .filter((u) => u.startsWith("/") || (u.startsWith("https://") && !/[?&]key=/i.test(u)));
+  return photos.filter(usable).sort((a, b) => rank(a) - rank(b)).slice(0, max).map((p) => photoSrc(p)!);
+}
+
+/** The photo gallery on the home page: everything worth showing that isn't a banner, with credit. */
+export function pickGallery(photos: Photo[], banners: string[], max = 12) {
+  return photos.filter((p) => usable(p) && !banners.includes(photoSrc(p)!) && (p.quality ?? 6) >= 5).slice(0, max)
+    .map((p) => ({ src: photoSrc(p)!, credit: p.source === "google" ? `${p.attribution ?? "Google"} · Google` : p.source === "yelp" ? "Yelp" : undefined, alt: p.dish }));
+}
+
+const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !["the", "and", "with", "pizza", "slice"].includes(w));
+
+/**
+ * Matches food photos to menu items: the item Claude named, else the item whose name shares the
+ * most words with the photo's dish ("pepperoni pizza with hot honey" → "Pepperoni & Hot Honey").
+ */
+export function matchDishes(photos: Photo[], itemNames: string[]): Photo[] {
+  return photos.map((p) => {
+    if (p.role !== "item" && p.role !== "hero" && p.role !== "gallery") return p;
+    const named = p.itemName && itemNames.find((n) => n.toLowerCase() === p.itemName!.toLowerCase());
+    if (named) return { ...p, itemName: named };
+    if (!p.dish) return { ...p, itemName: undefined };
+    const dish = new Set(words(p.dish));
+    let best: { name: string; score: number } | null = null;
+    for (const name of itemNames) {
+      const w = words(name);
+      if (!w.length) continue;
+      const score = w.filter((x) => dish.has(x)).length / w.length;
+      if (score > (best?.score ?? 0)) best = { name, score };
+    }
+    return { ...p, itemName: best && best.score >= 0.5 ? best.name : undefined };
+  });
 }
 
 const q = (s: string | null) => JSON.stringify(s);
@@ -83,6 +119,7 @@ export function installTheme(intake: Intake, clientDir: string, appRoot: string)
   const icon = place(b.iconFile);
   const files = (b.bannerFiles ?? []).map(place).filter((x): x is string => !!x);
   const banners = files.length ? files : b.banners ?? [];
+  const gallery = b.gallery ?? [];
   const accent = b.colors?.accent ?? intake.theme?.primary ?? "#F5A524";
   const header = b.colors?.header ?? intake.theme?.header ?? "#18181b";
   const background = b.colors?.background ?? "#f5f5f4";
@@ -106,6 +143,9 @@ export const businessTheme: BusinessTheme = {
 
   // Wide photos (at least 1600 px across) that crossfade behind the home page header, in order${files.length ? "" : banners.length ? "\n  // (listing photos for the demo: replace with the owner's own before launch)" : ""}
   heroBanners: [${banners.map((u) => `\n    ${q(u)},`).join("")}${banners.length ? "\n  " : ""}],
+
+  // More photos for the "Photos" strip on the home page (credit is shown under listing photos)
+  gallery: [${gallery.map((g) => `\n    { src: ${q(g.src)}${g.credit ? `, credit: ${q(g.credit)}` : ""}${g.alt ? `, alt: ${q(g.alt)}` : ""} },`).join("")}${gallery.length ? "\n  " : ""}],
 
   // Font ids from FONTS in src/domain/branding.ts, e.g. "oswald", "bebas", "playfair", "inter"
   fonts: { heading: ${q(fonts.heading)}, body: ${q(fonts.body)} },

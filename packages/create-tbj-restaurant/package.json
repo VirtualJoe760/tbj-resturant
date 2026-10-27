@@ -1,6 +1,6 @@
 {
   "name": "create-tbj-resturant",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Create a TBJ restaurant app: npx create-tbj-resturant. Asks about the restaurant (Google, Yelp, website or manual), menu, menu times, logo, app icon, photos, fonts, colors and delivery, and sets up the whole site.",
   "type": "module",
   "bin": {

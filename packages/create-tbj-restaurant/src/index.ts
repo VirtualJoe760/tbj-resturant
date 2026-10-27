@@ -18,15 +18,15 @@ import { getKey, KEYS, keyStatus, saveKeys, type KeyName } from "./credentials.t
 import { parseGoogleLink, searchPlaces } from "./sources/google.ts";
 import { yelpAlias, yelpDetails } from "./sources/yelp.ts";
 import { readWebsite } from "./sources/website.ts";
-import { readMenu, sortPhotos } from "./sources/ai.ts";
+import { photoBlock, readMenu, sortPhotos } from "./sources/ai.ts";
 import { parsePlainMenu } from "./sources/manual-menu.ts";
 import { writeClient } from "./write.ts";
 import { applyToApp, domainFor, findAppRoot, timezoneFor } from "./apply.ts";
-import { checkImage, collectBrandFiles, FONT_CHOICES, pickBanners } from "./theme.ts";
+import { checkImage, collectBrandFiles, FONT_CHOICES, matchDishes, pickBanners, pickGallery } from "./theme.ts";
 import { guessMenuTimes, parseRange, PRESETS } from "./menu-times.ts";
 import { packageIdFor, writeStoreKit } from "./store.ts";
 import type { DeliverySettings, Intake, Menu, MenuTime, Photo } from "./types.ts";
-import { copyTemplate, finishProject, folderName, nextSteps, startInstall, TEMPLATE } from "./create.ts";
+import { copyTemplate, ensureEnv, finishProject, folderName, nextSteps, startInstall, TEMPLATE } from "./create.ts";
 
 const ROOT = process.env.CR_OUT ?? path.resolve(process.cwd(), "clients");
 const cancel = <T>(v: T | symbol): T => {
@@ -199,13 +199,36 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   intake.email ??= await optional("email", "Owner email?", { validate: (v) => (v.includes("@") ? undefined : "Needs an email") });
   for (const f of ["address", "phone", "email"]) if ((intake as never)[f]) intake.sources[f] ??= "manual";
 
-  // 6. Menu: from their website (or Yelp's menu link) when there is one, otherwise a PDF, photos or text
+  // 5b. Listing photos: Claude picks the banner, spots dishes, menu photos and gallery shots
+  if (intake.photos.length && !process.env.ANTHROPIC_API_KEY) {
+    const k = await askKey("ANTHROPIC_API_KEY", `Found ${intake.photos.length} photos. With an Anthropic API key, Claude sorts them (home page banner, dish photos for the menu, gallery) and can read the menu from photos of it (console.anthropic.com → API keys).`);
+    if (k) process.env.ANTHROPIC_API_KEY = k;
+  }
+  if (intake.photos.length && process.env.ANTHROPIC_API_KEY) {
+    spin.start(`Sorting ${intake.photos.length} photos`);
+    try {
+      intake.photos = await sortPhotos(intake.photos, [], gKey);
+      const count = (r: Photo["role"]) => intake.photos.filter((x) => x.role === r).length;
+      spin.stop(`Photos: ${count("hero")} banner, ${count("item")} dishes, ${count("menu")} of the menu, ${count("gallery")} gallery, ${count("skip")} skipped`);
+    } catch (e) {
+      spin.stop(`Photo sorting skipped: ${(e as Error).message}`, 1);
+    }
+  }
+  const menuPhotos = intake.photos.filter((x) => x.role === "menu");
+
+  // 6. Menu: from their website (or Yelp's menu link), else from photos of the menu on their
+  // listings, else a PDF, photos or text from this computer
   let menu: Menu | undefined;
   let menuText = scripted?.menuText ?? "";
   const menuFiles = scripted?.menuFiles ?? [];
   let menuUrls: string[] = [];
   const menuFromSite = !menuText && !menuFiles.length && !!siteMenu;
-  if (menuFromSite) {
+  const menuFromPhotos = !menuText && !menuFiles.length && !siteMenu && menuPhotos.length > 0 && !!process.env.ANTHROPIC_API_KEY;
+  let menuImages: Awaited<ReturnType<typeof photoBlock>>[] = [];
+  if (menuFromPhotos) {
+    menuImages = await Promise.all(menuPhotos.slice(0, 6).map((x) => photoBlock(x, gKey)));
+    if (!scripted) p.log.success(`Reading the menu from ${menuImages.length} photo${menuImages.length === 1 ? "" : "s"} of it on their listings.`);
+  } else if (menuFromSite) {
     menuText = siteMenu!.text;
     if (siteMenu!.pdf) menuUrls = [siteMenu!.pdf];
     if (!scripted) p.log.success(`Using the menu from ${intake.website ?? "Yelp"}.`);
@@ -226,10 +249,10 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     if (k) process.env.ANTHROPIC_API_KEY = k;
   }
   const aiReady = !!process.env.ANTHROPIC_API_KEY;
-  if (menuText || menuFiles.length || menuUrls.length) {
+  if (menuText || menuFiles.length || menuUrls.length || menuImages.length) {
     spin.start(aiReady ? "Claude is reading the menu" : "Reading the menu (no AI key — simple format only)");
     try {
-      if (aiReady) menu = await readMenu({ text: menuText || undefined, files: menuFiles, urls: menuUrls });
+      if (aiReady) menu = await readMenu({ text: menuText || undefined, files: menuFiles, urls: menuUrls, images: menuImages });
       // a whole web page isn't a typed menu: without Claude, leave it for Admin → Menu
       else if (menuText && !menuFromSite) menu = parsePlainMenu(menuText);
       const n = menu?.categories.reduce((a, c) => a + c.items.length, 0) ?? 0;
@@ -261,17 +284,8 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     }
   }
 
-  // 6. Photos: AI sorting into hero / item / gallery / event
-  if (intake.photos.length && aiReady) {
-    spin.start(`Sorting ${intake.photos.length} photos`);
-    try {
-      intake.photos = await sortPhotos(intake.photos, menu?.categories.flatMap((c) => c.items.map((i) => i.name)) ?? [], gKey);
-      const count = (r: Photo["role"]) => intake.photos.filter((x) => x.role === r).length;
-      spin.stop(`Photos: ${count("hero")} hero, ${count("item")} matched to menu items, ${count("gallery")} gallery, ${count("skip")} skipped`);
-    } catch (e) {
-      spin.stop(`Photo sorting skipped: ${(e as Error).message}`, 1);
-    }
-  } else if (intake.photos.length) p.log.info(`${intake.photos.length} photos found (add an Anthropic key to sort them automatically).`);
+  // food photos onto the dishes they show (they become each item's photo carousel)
+  if (menu) intake.photos = matchDishes(intake.photos, menu.categories.flatMap((c) => c.items.map((i) => i.name)));
 
   intake.timezone = timezoneFor(intake.address);
 
@@ -315,6 +329,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   intake.branding = {
     ...files,
     banners: listingBanners,
+    gallery: pickGallery(intake.photos, listingBanners),
     fonts: { heading: headingFont, body: bodyFont },
     colors: { accent: accent ?? foundColor, header: header ?? intake.theme?.header },
   };
@@ -352,7 +367,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   p.note([
     `Name      ${intake.name}`, `Address   ${intake.address ?? "—"} (${intake.sources.address ?? "missing"})`, `Phone     ${intake.phone ?? "—"}`,
     `Website   ${intake.website ?? "—"}`, `Menu      ${menu ? menu.categories.map((c) => `${c.name} (${c.items.length})`).join(", ") : "none — add in admin"}`,
-    `Photos    ${intake.photos.length} (${intake.photos.filter((x) => !x.owned).length} from listings: demo only, credited)`,
+    `Photos    ${intake.photos.length} (${intake.photos.filter((x) => !x.owned).length} from listings: demo only, credited) · ${intake.photos.filter((x) => x.itemName).length} on menu items · ${intake.branding.gallery?.length ?? 0} in the gallery`,
     `Times     ${intake.menuTimes?.length ? intake.menuTimes.map((t) => `${t.name} ${t.startsAt}–${t.endsAt} (${t.sections.join(", ")})`).join("; ") : "all sections whenever open"}`,
     `Look      logo ${intake.branding.logoFile ? "yes" : "none"} · icon ${intake.branding.iconFile ? "yes" : "letter"} · ${intake.branding.bannerFiles?.length ?? 0} own + ${listingBanners.length} listing photos · fonts ${intake.branding.fonts?.heading}/${intake.branding.fonts?.body} · ${intake.branding.colors?.accent ?? "#F5A524"}`,
     `Delivery  ${intake.delivery ? `${intake.delivery.provider === "uber" ? "Uber" : "DoorDash"} drivers · customer pays ${intake.delivery.customerFee === "quote" ? "the quoted fee" : `$${(intake.delivery.customerFee / 100).toFixed(2)}`} · $${intake.delivery.minOrderCents / 100} minimum` : "pickup only"}`,
@@ -369,6 +384,9 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
   try {
     // The live preview's database is updated during the Vercel build (scripts/setup-db.ts),
     // so no database password is needed here. --local also loads the local dev database.
+    // Google listing photos load through the site's own server, which needs the key (local only)
+    if (gKey && intake.photos.some((x) => x.source === "google") && ensureEnv(switching.root, "GOOGLE_PLACES_API_KEY", gKey))
+      p.log.success("Saved the Google key in .env.local for listing photos (add GOOGLE_PLACES_API_KEY on Vercel too)");
     const log = applyToApp(intake, { root: switching.root, clientsDir, deploy, skipImport: !switching.local });
     for (const line of log) p.log.success(line);
   } catch (e) {

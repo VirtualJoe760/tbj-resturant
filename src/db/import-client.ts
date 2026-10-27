@@ -9,6 +9,13 @@ import * as s from "./schema";
 import { DEFAULT_DAYPARTS } from "../domain/dayparts";
 
 interface MenuTime { name: string; startsAt: string; endsAt: string; days?: number[]; sections: string[] }
+interface PhotoJson { source: string; url: string; ref?: string; role?: string; itemName?: string }
+
+/** Where the site loads a listing photo from (Google through /api/places-photo; never a URL with a key). */
+export function photoSrc(p: PhotoJson) {
+  const u = p.source === "google" && p.ref ? `/api/places-photo?name=${p.ref}` : p.url;
+  return u.startsWith("/") || (u.startsWith("https://") && !/[?&]key=/i.test(u)) ? u : undefined;
+}
 interface MenuJson {
   categories: { name: string; items: { name: string; description: string; price_cents: number; orderable_online: boolean; tags: string[];
     modifier_groups: { name: string; kind: "choice" | "addon" | "removal" | "option"; min: number; max: number; options: { name: string; price_cents: number; is_default: boolean }[] }[] }[] }[];
@@ -71,12 +78,16 @@ export async function importClient(db: PgliteDatabase<typeof s>, dir: string) {
   }
   let n = 0;
   if (!menu) return { items: 0 };
+  // dish photos the CLI matched to menu items become each item's photo carousel
+  const photosFile = path.join(dir, "photos.json");
+  const photos: PhotoJson[] = fs.existsSync(photosFile) ? JSON.parse(fs.readFileSync(photosFile, "utf8")) : [];
+  const imagesFor = (name: string) => photos.filter((x) => x.itemName?.toLowerCase() === name.toLowerCase()).map(photoSrc).filter((u): u is string => !!u).slice(0, 6);
   for (const [ci, c] of menu.categories.entries()) {
     const catId = slug(c.name) || `cat-${ci}`;
     await db.insert(s.categories).values({ id: catId, name: c.name, sort: ci, daypartIds: daypartsFor[c.name.toLowerCase()] ?? [] }).onConflictDoNothing();
     for (const [ii, it] of c.items.entries()) {
       const itemId = `${catId}-${slug(it.name)}-${ii}`;
-      await db.insert(s.items).values({ id: itemId, categoryId: catId, name: it.name, description: it.description, basePriceCents: it.price_cents, orderableOnline: it.orderable_online, tags: it.tags, emoji: EMOJI.find(([re]) => re.test(it.name + " " + c.name))?.[1] ?? "🍽️", sort: n++ });
+      await db.insert(s.items).values({ id: itemId, categoryId: catId, name: it.name, description: it.description, basePriceCents: it.price_cents, orderableOnline: it.orderable_online, tags: it.tags, emoji: EMOJI.find(([re]) => re.test(it.name + " " + c.name))?.[1] ?? "🍽️", images: imagesFor(it.name), sort: n++ });
       for (const [gi, g] of it.modifier_groups.entries()) {
         const gid = `${itemId}-g${gi}`;
         await db.insert(s.modifierGroups).values({ id: gid, name: g.name, kind: g.kind, minSelect: g.min, maxSelect: g.max });
