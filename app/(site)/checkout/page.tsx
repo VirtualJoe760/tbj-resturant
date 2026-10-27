@@ -1,3 +1,4 @@
+import { stripeReady } from "@/payments/provider";
 import { getUser } from "@/auth/session";
 import { getLocation } from "@/server/queries";
 import { CheckoutClient } from "./CheckoutClient";
@@ -9,7 +10,7 @@ export default async function CheckoutPage() {
   return (
     <>
       <header className="top"><h1>Checkout</h1><p>Pickup · {loc.address}</p></header>
-      <CheckoutClient taxRate={loc.taxRate} demoPayments={!process.env.STRIPE_SECRET_KEY} defaults={{ name: user?.name ?? "", email: user?.email ?? "" }} />
+      <CheckoutClient taxRate={loc.taxRate} demoPayments={!stripeReady()} defaults={{ name: user?.name ?? "", email: user?.email ?? "" }} />
     </>
   );
 }

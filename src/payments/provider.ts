@@ -55,7 +55,13 @@ function stripeProvider(mode: "connect" | "direct"): PaymentProvider {
   };
 }
 
+/**
+ * Stripe is used only when both the key and the webhook secret are set: without the webhook,
+ * Stripe can't tell us an order was paid, so it would never reach the kitchen.
+ */
+export const stripeReady = () => !!process.env.STRIPE_SECRET_KEY && !!process.env.STRIPE_WEBHOOK_SECRET;
+
 export function getPaymentProvider(): PaymentProvider {
-  if (!process.env.STRIPE_SECRET_KEY) return demo; // test keys work too: Stripe test mode in demos
+  if (!stripeReady()) return demo;
   return stripeProvider(process.env.STRIPE_CONNECT_ACCOUNT_ID ? "connect" : "direct");
 }
