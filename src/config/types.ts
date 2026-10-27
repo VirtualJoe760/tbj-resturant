@@ -34,6 +34,7 @@ export interface RestaurantConfig {
 }
 
 export interface GalleryPhoto { src: string; credit?: string; alt?: string }
+export type SiteStyle = "classic" | "midnight" | "diner" | "minimal";
 
 // The restaurant's look; values live in business-theme.ts (one file, plus images in public/brand/).
 export interface BusinessTheme {
@@ -42,6 +43,8 @@ export interface BusinessTheme {
   heroBanners: string[];
   gallery?: GalleryPhoto[];
   fonts: { heading: string; body: string };
+  // whole look of the site: "classic" | "midnight" (dark) | "diner" (retro) | "minimal" (white, square)
+  style?: SiteStyle;
   colors: { accent: string; header: string; background: string };
 }
 

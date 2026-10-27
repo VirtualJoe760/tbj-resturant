@@ -73,10 +73,12 @@ export default async function AdminMenu({ searchParams }: { searchParams: Promis
             <div key={c.id}>
               <div className="sec">{c.name}</div>
               {items.filter((i) => i.categoryId === c.id).map((i) => (
-                <details className="panel" key={i.id}>
-                  <summary style={{ padding: "10px 12px", cursor: "pointer" }}>{i.emoji} <b>{i.name}</b> · ${(i.basePriceCents / 100).toFixed(2)}{i.images.length > 0 && <span className="kind" style={{ marginLeft: 6 }}>📷 {i.images.length}</span>}{!i.isActive && <span className="kind" style={{ marginLeft: 6 }}>Hidden</span>}</summary>
-                  <div className="note" style={{ margin: "4px 12px 0" }}>Photos · swipe through them on the menu; the first is the cover</div>
+                <div className="panel" key={i.id}>
+                  <div style={{ padding: "10px 12px 2px" }}>{i.emoji} <b>{i.name}</b> · ${(i.basePriceCents / 100).toFixed(2)}{!i.isActive && <span className="kind" style={{ marginLeft: 6 }}>Hidden</span>}</div>
+                  {/* photos right on the list: tap + Photos, pick from the phone or computer; the first is the cover */}
                   <ItemPhotos itemId={i.id} initial={i.images} />
+                  <details>
+                  <summary style={{ padding: "4px 12px 6px", cursor: "pointer", fontSize: 13 }} className="muted">Edit name, price, description</summary>
                   <form action={updateItem}>
                     <input type="hidden" name="id" value={i.id} />
                     <div className="two">
@@ -89,6 +91,7 @@ export default async function AdminMenu({ searchParams }: { searchParams: Promis
                     <div className="chips"><button className="on">Save</button></div>
                   </form>
                 </details>
+                </div>
               ))}
             </div>
           ))}

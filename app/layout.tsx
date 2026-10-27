@@ -31,7 +31,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const b = await getBrand();
   const t = b.theme;
   const vars = {
-    "--primary": t.primary, "--primary-ink": t.primaryInk, "--header": t.header, "--bg": t.bg,
+    "--primary": t.primary, "--primary-ink": t.primaryInk, "--header": t.header,
+    // Classic uses the theme's page color; the other styles bring their own page and card colors
+    ...(b.style === "classic" ? { "--bg": t.bg } : {}),
     "--font-body": fontById(b.bodyFont).stack, "--font-heading": fontById(b.headingFont).stack,
   } as React.CSSProperties;
   const fonts = googleFontsHref([b.headingFont, b.bodyFont]);
@@ -42,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         {fonts && <link rel="stylesheet" href={fonts} />}
       </head>
-      <body style={vars}>
+      <body style={vars} className={`style-${b.style}`}>
         {children}
         <RegisterSW />
       </body>

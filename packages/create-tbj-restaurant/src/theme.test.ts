@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { FONTS } from "../../../src/domain/branding";
-import { FONT_CHOICES, pickBanners } from "./theme.ts";
+import { FONTS, STYLES } from "../../../src/domain/branding";
+import { FONT_CHOICES, pickBanners, STYLE_CHOICES } from "./theme.ts";
 
 describe("theme", () => {
   it("offers the same fonts the app can load", () => {
     expect(FONT_CHOICES.map(([id]) => id)).toEqual(FONTS.map((f) => f.id));
+    expect(STYLE_CHOICES.map(([id]) => id)).toEqual(STYLES.map((s) => s.id));
   });
   it("puts the hero first and never a Google key in a banner URL", () => {
     expect(pickBanners([

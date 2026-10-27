@@ -6,13 +6,15 @@ import { ADMIN_ROLES, requireRole } from "@/auth/session";
 import { getDb, schema as s } from "@/db/client";
 import { businessTheme } from "@/config/business-theme";
 import { pruneMedia } from "@/server/media";
-import { diffBranding, FONTS, fromBusinessTheme, inkFor } from "@/domain/branding";
+import { diffBranding, FONTS, fromBusinessTheme, inkFor, STYLES } from "@/domain/branding";
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
 const url = z.string().max(2000).refine((u) => u.startsWith("/") || u.startsWith("https://"), "Images must be uploaded or https links");
 const fontId = z.enum(FONTS.map((f) => f.id) as [string, ...string[]]);
 
 const BrandingInput = z.object({
+  style: z.enum(STYLES.map((s) => s.id) as [string, ...string[]]),
+  gallery: z.array(z.object({ src: url, credit: z.string().max(120).optional(), alt: z.string().max(200).optional() })).max(24),
   theme: z.object({ primary: hex, header: hex, bg: hex }),
   headingFont: fontId,
   bodyFont: fontId,
@@ -31,7 +33,7 @@ export async function saveBranding(input: z.infer<typeof BrandingInput>): Promis
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Check the colors and images." };
   const b = parsed.data;
   const base = fromBusinessTheme(businessTheme);
-  const brandingOverrides = diffBranding({ ...b, gallery: base.gallery, theme: { ...b.theme, primaryInk: inkFor(b.theme.primary) } }, base);
+  const brandingOverrides = diffBranding({ ...b, style: b.style as typeof base.style, theme: { ...b.theme, primaryInk: inkFor(b.theme.primary) } }, base);
   const db = await getDb();
   const row = await db.query.brand.findFirst({ where: eq(s.brand.id, "brand") });
   await db.update(s.brand).set({ settings: { ...(row?.settings ?? {}), brandingOverrides } }).where(eq(s.brand.id, "brand"));

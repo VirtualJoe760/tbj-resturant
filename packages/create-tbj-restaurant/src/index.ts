@@ -22,7 +22,7 @@ import { photoBlock, readMenu, sortPhotos } from "./sources/ai.ts";
 import { parsePlainMenu } from "./sources/manual-menu.ts";
 import { writeClient } from "./write.ts";
 import { applyToApp, domainFor, findAppRoot, timezoneFor } from "./apply.ts";
-import { checkImage, collectBrandFiles, FONT_CHOICES, matchDishes, pickBanners, pickGallery } from "./theme.ts";
+import { checkImage, collectBrandFiles, FONT_CHOICES, matchDishes, pickBanners, pickGallery, STYLE_CHOICES } from "./theme.ts";
 import { guessMenuTimes, parseRange, PRESETS } from "./menu-times.ts";
 import { packageIdFor, writeStoreKit } from "./store.ts";
 import type { DeliverySettings, Intake, Menu, MenuTime, Photo } from "./types.ts";
@@ -71,6 +71,7 @@ interface Answers {
   header?: string;
   headingFont?: string;
   bodyFont?: string;
+  style?: string; // classic | midnight | diner | minimal
   menuTimes?: MenuTime[];
   androidPackage?: string;
   // delivery: "doordash" | "uber" | "none"; fee "quote" or dollars; minimum in dollars
@@ -302,7 +303,12 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
       `${listingBanners.length} home page photos`,
       `accent ${foundColor ?? "#F5A524 (default)"}`,
     ].join(" · "));
-  const change = scripted ? true : cancel(await p.confirm({ message: "Add or change the logo, app icon, photos, colors or fonts?", initialValue: !found.logo }));
+  const style = ((await ask<string>("style", () => p.select({
+    message: "Site style? (switchable later in Admin → Branding)",
+    options: STYLE_CHOICES.map(([value, label, hint]) => ({ value, label, hint })),
+    initialValue: "classic",
+  }))) ?? "classic") as NonNullable<typeof intake.branding>["style"];
+  const change = scripted ? true : cancel(await p.confirm({ message: "Add or change the logo, app icon, photos, colors or fonts? (photos can also be uploaded later in the admin)", initialValue: !found.logo }));
   let logo: string | undefined, icon: string | undefined, ownPhotos: string[] = [];
   let accent: string | undefined, header: string | undefined, headingFont = "system", bodyFont = "system";
   if (change) {
@@ -330,6 +336,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     ...files,
     banners: listingBanners,
     gallery: pickGallery(intake.photos, listingBanners),
+    style,
     fonts: { heading: headingFont, body: bodyFont },
     colors: { accent: accent ?? foundColor, header: header ?? intake.theme?.header },
   };
@@ -369,6 +376,7 @@ async function newRestaurant(scripted: Answers | null, switching?: SwitchOptions
     `Website   ${intake.website ?? "—"}`, `Menu      ${menu ? menu.categories.map((c) => `${c.name} (${c.items.length})`).join(", ") : "none — add in admin"}`,
     `Photos    ${intake.photos.length} (${intake.photos.filter((x) => !x.owned).length} from listings: demo only, credited) · ${intake.photos.filter((x) => x.itemName).length} on menu items · ${intake.branding.gallery?.length ?? 0} in the gallery`,
     `Times     ${intake.menuTimes?.length ? intake.menuTimes.map((t) => `${t.name} ${t.startsAt}–${t.endsAt} (${t.sections.join(", ")})`).join("; ") : "all sections whenever open"}`,
+    `Style     ${intake.branding.style ?? "classic"}`,
     `Look      logo ${intake.branding.logoFile ? "yes" : "none"} · icon ${intake.branding.iconFile ? "yes" : "letter"} · ${intake.branding.bannerFiles?.length ?? 0} own + ${listingBanners.length} listing photos · fonts ${intake.branding.fonts?.heading}/${intake.branding.fonts?.body} · ${intake.branding.colors?.accent ?? "#F5A524"}`,
     `Delivery  ${intake.delivery ? `${intake.delivery.provider === "uber" ? "Uber" : "DoorDash"} drivers · customer pays ${intake.delivery.customerFee === "quote" ? "the quoted fee" : `$${(intake.delivery.customerFee / 100).toFixed(2)}`} · $${intake.delivery.minOrderCents / 100} minimum` : "pickup only"}`,
     `App id    ${intake.app.androidPackage}`,
@@ -462,7 +470,7 @@ function flagAnswers(): Answers | null {
       menuFiles: flag("menu-file") ? [flag("menu-file")!] : undefined,
       address: flag("address"), phone: flag("phone"), email: flag("email"),
       logo: flag("logo"), icon: flag("icon"), photos: flag("photos")?.split(",").map((x) => x.trim()).filter(Boolean),
-      accent: flag("accent"), header: flag("header"), headingFont: flag("heading-font"), bodyFont: flag("body-font"),
+      accent: flag("accent"), header: flag("header"), headingFont: flag("heading-font"), bodyFont: flag("body-font"), style: flag("style"),
       delivery: flag("delivery") ?? "none", deliveryFee: flag("delivery-fee"), deliveryMin: flag("delivery-min"),
       features: { ordering: true, events: true, scheduling: true, newsletter: true },
     };
@@ -520,4 +528,4 @@ else if (cmd === "switch") {
 else if (cmd === "list") list();
 else if (cmd === "store") await store();
 else if (!COMMANDS.includes(cmd ?? "help") || cmd === undefined) await createApp(cmd?.startsWith("--") ? undefined : cmd);
-else console.log("Usage: npx create-tbj-resturant [folder] [--google \"Name, City\" …]  |  create-tbj-resturant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--logo f] [--icon f] [--photos a,b] [--delivery doordash|uber|none] [--deploy] [--local] | store [--url https://…]>");
+else console.log("Usage: npx create-tbj-resturant [folder] [--google \"Name, City\" …]  |  create-tbj-resturant <login | new [--answers file.json] | list | switch [--google \"Name, City\" | --yelp url | --website url] [--logo f] [--icon f] [--photos a,b] [--style classic|midnight|diner|minimal] [--delivery doordash|uber|none] [--deploy] [--local] | store [--url https://…]>");

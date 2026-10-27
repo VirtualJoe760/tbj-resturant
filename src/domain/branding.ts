@@ -1,21 +1,30 @@
 // The restaurant's look. src/config/business-theme.ts is the source of truth; Admin → Branding
 // can layer owner changes on top (stored as overrides in brand.settings), each one resettable.
-import type { BusinessTheme, GalleryPhoto } from "../config/types";
+import type { BusinessTheme, GalleryPhoto, SiteStyle } from "../config/types";
+
+export const STYLES: { id: SiteStyle; label: string; hint: string }[] = [
+  { id: "classic", label: "Classic", hint: "Light pages, rounded cards" },
+  { id: "midnight", label: "Midnight", hint: "Dark pages, glowing accent" },
+  { id: "diner", label: "Diner", hint: "Cream paper, bold outlines, retro" },
+  { id: "minimal", label: "Minimal", hint: "White space, square corners" },
+];
+const styleOf = (x: unknown): SiteStyle => (STYLES.some((s) => s.id === x) ? (x as SiteStyle) : "classic");
 
 export interface Theme { primary: string; primaryInk: string; header: string; bg: string }
 
 export interface Branding {
+  style: SiteStyle;
   theme: Theme;
   headingFont: string; // id from FONTS
   bodyFont: string;
   logoUrl: string | null;
   iconUrl: string | null; // "/brand/app-icon.png" from the theme file, or "/media/<id>" uploaded in admin
   banners: string[]; // image URLs, shown as a slideshow behind the home page header
-  gallery: GalleryPhoto[]; // the "Photos" strip on the home page (from business-theme.ts)
+  gallery: GalleryPhoto[]; // the "Photos" strip on the home page
 }
 
 /** What Admin → Branding saves: only the fields the owner changed from business-theme.ts. */
-export type BrandingOverrides = Partial<Omit<Branding, "theme" | "gallery">> & { theme?: Partial<Omit<Theme, "primaryInk">> };
+export type BrandingOverrides = Partial<Omit<Branding, "theme">> & { theme?: Partial<Omit<Theme, "primaryInk">> };
 
 export interface FontChoice { id: string; label: string; stack: string; google?: string }
 
@@ -56,6 +65,7 @@ export function inkFor(hex: string) {
 
 export function fromBusinessTheme(t: BusinessTheme): Branding {
   return {
+    style: styleOf(t.style),
     theme: { primary: t.colors.accent, header: t.colors.header, bg: t.colors.background, primaryInk: inkFor(t.colors.accent) },
     headingFont: fontById(t.fonts.heading).id,
     bodyFont: fontById(t.fonts.body).id,
@@ -78,13 +88,14 @@ export function resolveBranding(overrides: BrandingOverrides | undefined, base: 
   };
   theme.primaryInk = inkFor(theme.primary);
   return {
+    style: o.style ? styleOf(o.style) : base.style,
     theme,
     headingFont: o.headingFont && FONTS.some((f) => f.id === o.headingFont) ? o.headingFont : base.headingFont,
     bodyFont: o.bodyFont && FONTS.some((f) => f.id === o.bodyFont) ? o.bodyFont : base.bodyFont,
     logoUrl: o.logoUrl !== undefined ? o.logoUrl : base.logoUrl,
     iconUrl: o.iconUrl !== undefined ? o.iconUrl : base.iconUrl,
     banners: o.banners ?? base.banners,
-    gallery: base.gallery,
+    gallery: o.gallery ?? base.gallery,
   };
 }
 
@@ -94,10 +105,12 @@ export function diffBranding(b: Branding, base: Branding): BrandingOverrides {
   const theme: NonNullable<BrandingOverrides["theme"]> = {};
   for (const k of ["primary", "header", "bg"] as const) if (b.theme[k].toLowerCase() !== base.theme[k].toLowerCase()) theme[k] = b.theme[k];
   if (Object.keys(theme).length) o.theme = theme;
+  if (b.style !== base.style) o.style = b.style;
   if (b.headingFont !== base.headingFont) o.headingFont = b.headingFont;
   if (b.bodyFont !== base.bodyFont) o.bodyFont = b.bodyFont;
   if (b.logoUrl !== base.logoUrl) o.logoUrl = b.logoUrl;
   if (b.iconUrl !== base.iconUrl) o.iconUrl = b.iconUrl;
   if (JSON.stringify(b.banners) !== JSON.stringify(base.banners)) o.banners = b.banners;
+  if (JSON.stringify(b.gallery) !== JSON.stringify(base.gallery)) o.gallery = b.gallery;
   return o;
 }

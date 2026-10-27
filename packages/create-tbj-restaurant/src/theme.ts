@@ -4,6 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Intake, IntakeBranding, Photo } from "./types.ts";
 
+// Same ids as STYLES in src/domain/branding.ts: the whole look of the site.
+export const STYLE_CHOICES: [id: NonNullable<IntakeBranding["style"]>, label: string, hint: string][] = [
+  ["classic", "Classic", "light pages, rounded cards"],
+  ["midnight", "Midnight", "dark pages, glowing accent: bars, late-night, moody brands"],
+  ["diner", "Diner", "cream paper, bold outlines, retro"],
+  ["minimal", "Minimal", "white space, square corners: cafés, bakeries, upscale"],
+];
+
 // Same ids as FONTS in src/domain/branding.ts (a test in the app keeps them in sync).
 export const FONT_CHOICES: [id: string, label: string][] = [
   ["system", "Phone default"], ["inter", "Inter"], ["dm-sans", "DM Sans"], ["poppins", "Poppins"], ["montserrat", "Montserrat"],
@@ -146,6 +154,9 @@ export const businessTheme: BusinessTheme = {
 
   // More photos for the "Photos" strip on the home page (credit is shown under listing photos)
   gallery: [${gallery.map((g) => `\n    { src: ${q(g.src)}${g.credit ? `, credit: ${q(g.credit)}` : ""}${g.alt ? `, alt: ${q(g.alt)}` : ""} },`).join("")}${gallery.length ? "\n  " : ""}],
+
+  // Whole look of the site: "classic" | "midnight" (dark) | "diner" (retro) | "minimal" (white, square)
+  style: ${q(b.style ?? "classic")},
 
   // Font ids from FONTS in src/domain/branding.ts, e.g. "oswald", "bebas", "playfair", "inter"
   fonts: { heading: ${q(fonts.heading)}, body: ${q(fonts.body)} },

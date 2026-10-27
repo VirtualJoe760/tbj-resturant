@@ -11,7 +11,7 @@ export async function pruneMedia() {
   const brand = await db.query.brand.findFirst({ where: eq(s.brand.id, "brand") });
   const o = ((brand?.settings ?? {}) as { brandingOverrides?: BrandingOverrides }).brandingOverrides ?? {};
   const itemImages = (await db.select({ images: s.items.images }).from(s.items)).flatMap((r) => r.images);
-  const keep = [o.logoUrl, o.iconUrl, ...(o.banners ?? []), ...itemImages].map(mediaIdOf).filter((x): x is string => !!x);
+  const keep = [o.logoUrl, o.iconUrl, ...(o.banners ?? []), ...(o.gallery ?? []).map((g) => g.src), ...itemImages].map(mediaIdOf).filter((x): x is string => !!x);
   const hourAgo = new Date(Date.now() - 3600_000);
   await db.delete(s.media).where(keep.length ? and(notInArray(s.media.id, keep), lt(s.media.createdAt, hourAgo)) : lt(s.media.createdAt, hourAgo));
 }

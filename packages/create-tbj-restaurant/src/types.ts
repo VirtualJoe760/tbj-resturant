@@ -44,6 +44,7 @@ export interface IntakeBranding {
   banners?: string[]; // listing photo URLs (no keys), used when there are no banner files
   gallery?: { src: string; credit?: string; alt?: string }[]; // more photos for the home page
   fonts?: { heading: string; body: string };
+  style?: "classic" | "midnight" | "diner" | "minimal";
   colors?: { accent?: string; header?: string; background?: string };
 }
 

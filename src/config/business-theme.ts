@@ -17,6 +17,9 @@ export const businessTheme: BusinessTheme = {
   // Wide photos (at least 1600 px across) that crossfade behind the home page header, in order
   heroBanners: [],
 
+  // Whole look of the site: "classic" | "midnight" (dark) | "diner" (retro) | "minimal" (white, square)
+  style: "classic",
+
   // Font ids from FONTS in src/domain/branding.ts, e.g. "oswald", "bebas", "playfair", "inter"
   fonts: { heading: "system", body: "system" },
 
