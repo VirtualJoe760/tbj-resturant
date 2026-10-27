@@ -45,7 +45,7 @@ export function isOpenNow(rows: HoursRow[], timeZone: string, now = new Date()) 
 }
 
 export function formatTime(t: string) {
-  let [h, m] = t.split(":").map(Number);
+  const [h0, m] = t.split(":").map(Number); let h = h0;
   const ap = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   return `${h}${m ? ":" + String(m).padStart(2, "0") : ""} ${ap}`;

@@ -9,7 +9,9 @@ if (!slug) {
   console.error("Usage: pnpm import-client <slug>");
   process.exit(1);
 }
-await ready();
-const r = await importClient(db, path.resolve(process.env.CR_OUT ?? "clients", slug));
-console.log(`Imported ${slug}: ${r.items} menu items. Update src/config/restaurant.ts (name, domain, colors) to match.`);
-process.exit(0);
+(async () => {
+  await ready();
+  const r = await importClient(db, path.resolve(process.env.CR_OUT ?? "clients", slug));
+  console.log(`Imported ${slug}: ${r.items} menu items. Update src/config/restaurant.ts (name, domain, colors) to match.`);
+  process.exit(0);
+})();

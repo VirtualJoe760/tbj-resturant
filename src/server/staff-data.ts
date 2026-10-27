@@ -24,7 +24,7 @@ export async function getStaffContext() {
 
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export const short = (t: string) => {
-  let [h, m] = t.split(":").map(Number);
+  const [h0, m] = t.split(":").map(Number); let h = h0;
   const ap = h >= 12 ? "p" : "a";
   h = h % 12 || 12;
   return h + (m ? ":" + String(m).padStart(2, "0") : "") + ap;

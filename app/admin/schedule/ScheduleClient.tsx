@@ -12,7 +12,7 @@ interface Cover { id: string; shiftId: string; from: string; by: string | null; 
 
 const POS: Record<string, string> = { Bartender: "#d97706", Cook: "#dc2626", Server: "#2563eb", Door: "#7c3aed" };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const short = (t: string) => { let [h, m] = t.split(":").map(Number); const ap = h >= 12 ? "p" : "a"; h = h % 12 || 12; return h + (m ? ":" + String(m).padStart(2, "0") : "") + ap; };
+const short = (t: string) => { const [h0, m] = t.split(":").map(Number); let h = h0; const ap = h >= 12 ? "p" : "a"; h = h % 12 || 12; return h + (m ? ":" + String(m).padStart(2, "0") : "") + ap; };
 const addDays = (d: string, n: number) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
 
 export function ScheduleClient({ weekStart, employees, shifts, timeOff, covers }: { weekStart: string; employees: Emp[]; shifts: Shift[]; timeOff: TimeOff[]; covers: Cover[] }) {
