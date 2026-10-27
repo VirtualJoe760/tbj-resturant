@@ -240,7 +240,7 @@ button { font: inherit; }
   .tabbar a { flex: none; flex-direction: row; font-size: 14px; padding: 8px 14px; color: #d4d4d8; border-radius: 999px; gap: 6px; }
   .tabbar a.on { background: #27272a; color: var(--primary); }
   .tabbar .ic { display: none; }
-  .tabbar .center { order: 9; margin-left: 8px; background: var(--primary); color: var(--primary-ink) !important; font-weight: 700; }
+  .tabbar a.center, .tabbar a.center.on { order: 9; margin-left: 8px; background: var(--primary); color: var(--primary-ink); font-weight: 700; }
   .tabbar .center .ic { display: inline-grid; width: auto; height: auto; margin: 0; background: none; box-shadow: none; font-size: 15px; }
   .tabbar i { position: static; display: inline-grid; margin-left: 4px; }
   .page { padding-bottom: 40px; }
@@ -250,7 +250,8 @@ button { font: inherit; }
   .hero h1 { font-size: 52px; }
   .foot .cols { grid-template-columns: repeat(4, 1fr); }
   .sheet { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); width: 560px; max-height: 86vh; border-radius: 20px; }
-  .sheet .foot { position: sticky; }
+  .sheet { padding-bottom: 0; }
+  .sheet .foot { position: sticky; bottom: 0; }
   .menu-grid { display: grid; grid-template-columns: 1fr 1fr; }
   .menu-grid .item { width: auto; }
   .kpis { grid-template-columns: repeat(4, 1fr); }

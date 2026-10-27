@@ -1,6 +1,6 @@
 "use server";
 import { headers } from "next/headers";
-import { count, eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema as s } from "@/db/client";
 import { loadItemDefs } from "@/db/seed";
@@ -68,7 +68,7 @@ export async function placeOrder(input: z.infer<typeof OrderInput>): Promise<{ o
   }
   const totals = priceCart(lines.map((l) => ({ unitCents: l.unit, quantity: l.quantity })), { taxRate: loc!.taxRate, tipPct: o.tipPct });
   const user = await getUser();
-  const [{ n }] = await db.select({ n: count() }).from(s.orders);
+  const [{ n }] = await db.select({ n: sql<number>`coalesce(max(substring(${s.orders.number} from 2)::int), 0)::int` }).from(s.orders);
   const number = orderNumber(n + 1);
   const provider = getPaymentProvider();
 
