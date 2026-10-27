@@ -44,6 +44,7 @@ describe("import-client", () => {
     await importClient(db, dir);
     expect((await db.select().from(schema.brand))[0].settings).not.toHaveProperty("brandingOverrides");
     expect(await db.select().from(schema.media)).toHaveLength(0);
+    expect(await db.select().from(schema.events)).toHaveLength(0); // The Hood's sample events are gone
     const [bf] = await db.select().from(schema.dayparts);
     expect(bf.name).toBe("Breakfast");
     const cats = await db.select().from(schema.categories);
