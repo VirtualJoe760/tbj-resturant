@@ -1,10 +1,20 @@
+import { createHash } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db, schema } from "@/db/client";
 
+// BETTER_AUTH_SECRET wins when set. Otherwise a deployed site derives its secret from its own
+// database URL: private to the server, different for every client, and nobody has to paste it.
+// Rotating the database password signs everyone out, which is the right outcome anyway.
+function authSecret() {
+  if (process.env.BETTER_AUTH_SECRET) return process.env.BETTER_AUTH_SECRET;
+  if (process.env.DATABASE_URL) return createHash("sha256").update(`better-auth:${process.env.DATABASE_URL}`).digest("hex");
+  return "dev-only-secret-change-me-in-env-0123456789";
+}
+
 export const auth = betterAuth({
-  secret: process.env.BETTER_AUTH_SECRET ?? "dev-only-secret-change-me-in-env-0123456789",
+  secret: authSecret(),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: { user: schema.user, session: schema.session, account: schema.account, verification: schema.verification },
