@@ -8,7 +8,7 @@ Everything visual about a restaurant lives in one file, with its images in `publ
 |---|---|---|
 | `logo` | Home page header, desktop top bar | PNG with a see-through background, ~800 px wide |
 | `appIcon` | Phone home screen, favicon, Play Store / App Store icon, install prompt | Square PNG, 1024 × 1024, important part in the middle 80% |
-| `heroBanners` | Crossfading photos behind the home page header, in order | Wide JPGs, ≥ 1600 px across |
+| `heroes` | Hero carousels: crossfading photos behind the header of the home, menu, events and account pages (`{ home, menu, events, account }`). An empty page uses the home photos. Also uploadable in Admin → Branding | Wide JPGs, ≥ 1600 px across |
 | `style` | The whole look: **Classic** (light, rounded), **Midnight** (dark pages, glowing accent), **Diner** (cream paper, bold outlines, offset shadows), **Minimal** (white space, square corners) | Switch any time in Admin → Branding |
 | `gallery` | The "Photos" strip on the home page | Upload in Admin → Branding → Photo gallery |
 | `fonts.heading` / `fonts.body` | Name and page titles / everything else | Ids from `FONTS` in `src/domain/branding.ts` (Google Fonts) |

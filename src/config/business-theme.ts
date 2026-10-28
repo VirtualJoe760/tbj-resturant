@@ -1,4 +1,4 @@
-// THE place for this restaurant's look: logo, app icon, home page banner photos, fonts, colors.
+// THE place for this restaurant's look: logo, app icon, hero carousel photos, fonts, colors.
 // Put image files in public/brand/ and point to them here ("/brand/logo.png"). Every screen,
 // the app icon at every size, the install manifest and the app-store builds read from this file.
 //
@@ -14,8 +14,9 @@ export const businessTheme: BusinessTheme = {
   // null = first letter of the name on the header color
   appIcon: null,
 
-  // Wide photos (at least 1600 px across) that crossfade behind the home page header, in order
-  heroBanners: [],
+  // Hero carousels: wide photos (at least 1600 px across) that crossfade behind each page's header,
+  // in order. An empty page uses the home photos. Owners can also upload them in Admin → Branding.
+  heroes: { home: [], menu: [], events: [], account: [] },
 
   // Whole look of the site: "classic" | "midnight" (dark) | "diner" (retro) | "minimal" (white, square)
   style: "classic",

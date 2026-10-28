@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-/** Crossfading banner photos behind the home page header. */
+/** Crossfading photos behind a page's header (the home hero or a PageHero). */
 export function HeroBanners({ urls }: { urls: string[] }) {
   const [i, setI] = useState(0);
   useEffect(() => {

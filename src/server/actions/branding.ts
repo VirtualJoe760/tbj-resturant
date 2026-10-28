@@ -6,7 +6,7 @@ import { ADMIN_ROLES, requireRole } from "@/auth/session";
 import { getDb, schema as s } from "@/db/client";
 import { businessTheme } from "@/config/business-theme";
 import { pruneMedia } from "@/server/media";
-import { diffBranding, FONTS, fromBusinessTheme, inkFor, STYLES } from "@/domain/branding";
+import { diffBranding, FONTS, fromBusinessTheme, HERO_PAGES, inkFor, MAX_HERO_PHOTOS, STYLES } from "@/domain/branding";
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i);
 const url = z.string().max(2000).refine((u) => u.startsWith("/") || u.startsWith("https://"), "Images must be uploaded or https links");
@@ -20,7 +20,7 @@ const BrandingInput = z.object({
   bodyFont: fontId,
   logoUrl: url.nullable(),
   iconUrl: url.nullable(),
-  banners: z.array(url).max(8),
+  heroes: z.object(Object.fromEntries(HERO_PAGES.map((p) => [p.id, z.array(url).max(MAX_HERO_PHOTOS)])) as Record<(typeof HERO_PAGES)[number]["id"], z.ZodArray<typeof url>>),
 });
 
 /**

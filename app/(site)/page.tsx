@@ -5,16 +5,18 @@ import { formatTime } from "@/domain/hours";
 import { money } from "@/domain/pricing";
 import { getHomeData } from "@/server/queries";
 import { getBrand } from "@/server/branding";
+import { heroFor } from "@/domain/branding";
 import { HeroBanners } from "@/components/HeroBanners";
 import { NewsletterSignup } from "./NewsletterSignup";
 
 export default async function Home() {
   const [{ featured, upcoming, location }, brand] = await Promise.all([getHomeData(), getBrand()]);
+  const photos = heroFor(brand, "home");
   return (
     <>
       <section className="hero">
-        {brand.banners.length > 0 && <HeroBanners urls={brand.banners} />}
-        {brand.banners.some((u) => /^https?:|^\/api\/places-photo/.test(u)) && <span className="photo-credit">Photos: {[brand.banners.some((u) => u.includes("places-photo")) && "Google", brand.banners.some((u) => u.includes("yelp")) && "Yelp"].filter(Boolean).join(" & ") || "listings"}</span>}
+        {photos.length > 0 && <HeroBanners urls={photos} />}
+        {photos.some((u) => /^https?:|^\/api\/places-photo/.test(u)) && <span className="photo-credit">Photos: {[photos.some((u) => u.includes("places-photo")) && "Google", photos.some((u) => u.includes("yelp")) && "Yelp"].filter(Boolean).join(" & ") || "listings"}</span>}
         <div className={`status ${location.open ? "open" : "closed"}`}>
           {location.open ? "● Open now" : "● Closed now"} · {location.hoursSummary[0]}
         </div>

@@ -22,7 +22,7 @@ voice ordering with Retell, an owner dashboard, email receipts, and a newsletter
 | [14-payroll-deposits](14-payroll-deposits.md) | Optional: Gusto payroll (direct deposit for staff) and bank-transfer deposits for events and catering |
 | [15-intake-and-demo](15-intake-and-demo.md) | `create-tbj-resturant` CLI (`npx create-tbj-resturant`): questionnaire (Google, Yelp, website or manual intake), free demo sites for pitching, promote to live |
 | [17-delivery-and-order-alerts](17-delivery-and-order-alerts.md) | Delivery through DoorDash Drive / Uber Direct (demo driver for pitches), order alerts on the dashboard, pop-ups and phone notifications |
-| [16-app-stores](16-app-stores.md) | `business-theme.ts` (logo, app icon, banners, fonts, colors), Admin → Branding, menu item photos, menu times, Play Store and App Store |
+| [16-app-stores](16-app-stores.md) | `business-theme.ts` (logo, app icon, hero carousels, fonts, colors), Admin → Branding, menu item photos, menu times, Play Store and App Store |
 | [clients/the-hood](clients/the-hood.md) | Client #1 profile, draft menu, open questions |
 | [mock-ui/index.html](mock-ui/index.html) | Clickable mobile mock of customer + admin screens |
 

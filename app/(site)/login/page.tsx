@@ -1,3 +1,4 @@
+import { PageHero } from "@/components/PageHero";
 import { isDemo } from "@/config/restaurant";
 import { socialEnabled } from "@/auth/auth";
 import { TEST_ACCOUNTS, TEST_PASSWORD, testEmail } from "@/db/test-accounts";
@@ -11,7 +12,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const tests = isDemo ? TEST_ACCOUNTS.map((a) => ({ email: testEmail(a.local), label: a.label, note: a.note })) : [];
   return (
     <>
-      <header className="top"><h1>Sign in</h1><p>Customers, team members and owners all sign in here</p></header>
+      <PageHero page="account" title="Sign in">Customers, team members and owners all sign in here</PageHero>
       <LoginClient next={next} tests={tests} testPassword={isDemo ? TEST_PASSWORD : ""} social={socialEnabled} />
     </>
   );

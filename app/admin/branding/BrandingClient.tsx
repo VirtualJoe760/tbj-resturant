@@ -2,7 +2,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "@/components/Toast";
-import { diffBranding, FONTS, fontById, inkFor, STYLES, type Branding } from "@/domain/branding";
+import { diffBranding, FONTS, fontById, HERO_PAGES, heroFor, inkFor, MAX_HERO_PHOTOS, STYLES, type Branding } from "@/domain/branding";
+import type { HeroPage } from "@/config/types";
 import { saveBranding } from "@/server/actions/branding";
 import { uploadImage as upload, type ImageKind } from "@/components/upload-image";
 
@@ -17,25 +18,25 @@ const COLORS: [keyof Branding["theme"], string, string][] = [
 export function BrandingClient({ initial, base, name, shortName, tagline }: { initial: Branding; base: Branding; name: string; shortName: string; tagline: string }) {
   const [b, setB] = useState(initial);
   const [saved, setSaved] = useState(initial);
-  const [busy, setBusy] = useState<Kind | null>(null);
+  const [busy, setBusy] = useState<string | null>(null); // "logo", "icon", "item" or "hero:<page>"
   const [saving, start] = useTransition();
   const router = useRouter();
   const dirty = JSON.stringify(b) !== JSON.stringify(saved);
   const set = (patch: Partial<Branding>) => setB((x) => ({ ...x, ...patch }));
 
-  const pick = (kind: Kind, multiple = false) => {
+  const pick = (kind: Kind, multiple = false, page?: HeroPage) => {
     const input = document.createElement("input");
     input.type = "file"; input.accept = "image/png,image/jpeg,image/webp"; input.multiple = multiple;
     input.onchange = async () => {
       const files = [...(input.files ?? [])];
       if (!files.length) return;
-      setBusy(kind);
+      setBusy(page ? `hero:${page}` : kind);
       try {
         for (const f of files) {
           const m = await upload(f, kind);
           if (kind === "logo") set({ logoUrl: m.url });
           if (kind === "icon") set({ iconUrl: m.url });
-          if (kind === "banner") setB((x) => ({ ...x, banners: [...x.banners, m.url].slice(0, 8) }));
+          if (kind === "banner" && page) setB((x) => ({ ...x, heroes: { ...x.heroes, [page]: [...x.heroes[page], m.url].slice(0, MAX_HERO_PHOTOS) } }));
           if (kind === "item") setB((x) => ({ ...x, gallery: [...x.gallery, { src: m.url }].slice(0, 24) }));
         }
       } catch (e) { toast((e as Error).message); }
@@ -50,15 +51,16 @@ export function BrandingClient({ initial, base, name, shortName, tagline }: { in
     if (r.ok) { setSaved(b); router.refresh(); }
   });
 
-  const move = (i: number, d: number) => {
-    const next = [...b.banners]; const [x] = next.splice(i, 1); next.splice(i + d, 0, x); set({ banners: next });
+  const setHero = (page: HeroPage, urls: string[]) => set({ heroes: { ...b.heroes, [page]: urls } });
+  const move = (page: HeroPage, i: number, d: number) => {
+    const next = [...b.heroes[page]]; const [x] = next.splice(i, 1); next.splice(i + d, 0, x); setHero(page, next);
   };
   const moveG = (i: number, d: number) => {
     const next = [...b.gallery]; const [x] = next.splice(i, 1); next.splice(i + d, 0, x); set({ gallery: next });
   };
   const ink = inkFor(b.theme.primary);
   const iconSrc = b.iconUrl;
-  const LABEL: Record<string, string> = { style: "style", gallery: "gallery", theme: "colors", headingFont: "heading font", bodyFont: "body font", logoUrl: "logo", iconUrl: "app icon", banners: "home page photos" };
+  const LABEL: Record<string, string> = { style: "style", gallery: "gallery", theme: "colors", headingFont: "heading font", bodyFont: "body font", logoUrl: "logo", iconUrl: "app icon", heroes: "hero carousels" };
   const changed = Object.keys(diffBranding({ ...b, theme: { ...b.theme, primaryInk: ink } }, base)).map((k) => LABEL[k] ?? k);
 
   return (
@@ -93,24 +95,36 @@ export function BrandingClient({ initial, base, name, shortName, tagline }: { in
             <p className="note">A PNG with a see-through background looks best. It shows on the home page and in the top bar on computers.</p>
           </div>
 
-          <div className="sec">Home page photos <span className="muted small">{b.banners.length}/8</span></div>
-          <div className="panel pad">
-            {b.banners.length === 0 && <p className="note">No photos yet, so the home page uses the header color. Wide photos of food or the room work best.</p>}
-            <div className="banner-list">
-              {b.banners.map((u, i) => (
-                <div className="banner-row" key={u}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={u} alt={`Photo ${i + 1}`} />
-                  <div className="chips" style={{ margin: 0 }}>
-                    <button type="button" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</button>
-                    <button type="button" disabled={i === b.banners.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</button>
-                    <button type="button" onClick={() => set({ banners: b.banners.filter((_, k) => k !== i) })}>Remove</button>
+          {HERO_PAGES.map(({ id, label, hint }) => {
+            const urls = b.heroes[id];
+            return (
+              <div key={id}>
+                <div className="sec">{label} <span className="muted small">{urls.length}/{MAX_HERO_PHOTOS}</span></div>
+                <div className="panel pad">
+                  <p className="note">
+                    {hint}{" "}
+                    {urls.length ? "Photos crossfade in this order." : id === "home" ? "No photos yet, so it uses the header color." : b.heroes.home.length ? "No photos yet, so it uses the home carousel." : "No photos yet, so it uses the header color."}
+                    {id === "home" && " Wide photos of food or the room work best."}
+                  </p>
+                  <div className="item-photos hero-photos">
+                    {urls.map((u, i) => (
+                      <div className="ph" key={u}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={u} alt={`${label} photo ${i + 1}`} />
+                        {i === 0 && <span className="ph-first">First</span>}
+                        <div className="ph-tools">
+                          <button type="button" disabled={i === 0} onClick={() => move(id, i, -1)} aria-label="Move left">‹</button>
+                          <button type="button" onClick={() => setHero(id, urls.filter((_, k) => k !== i))} aria-label="Remove photo">✕</button>
+                          <button type="button" disabled={i === urls.length - 1} onClick={() => move(id, i, 1)} aria-label="Move right">›</button>
+                        </div>
+                      </div>
+                    ))}
+                    {urls.length < MAX_HERO_PHOTOS && <button type="button" className="ph add" onClick={() => pick("banner", true, id)} disabled={!!busy}>{busy === `hero:${id}` ? "Uploading…" : "+ Photos"}</button>}
                   </div>
                 </div>
-              ))}
-            </div>
-            <div className="chips"><button type="button" className="on" onClick={() => pick("banner", true)} disabled={!!busy || b.banners.length >= 8}>{busy === "banner" ? "Uploading…" : "+ Add photos"}</button></div>
-          </div>
+              </div>
+            );
+          })}
 
           <div className="sec">Photo gallery <span className="muted small">{b.gallery.length}/24</span></div>
           <div className="panel pad">
@@ -177,7 +191,7 @@ export function BrandingClient({ initial, base, name, shortName, tagline }: { in
         <div className="preview-col">
           <div className="sec">Preview</div>
           <div className={`phone pv-${b.style}`} style={{ background: b.style === "midnight" ? "#09090b" : b.style === "diner" ? "#fbf5e9" : b.style === "minimal" ? "#fff" : b.theme.bg, fontFamily: fontById(b.bodyFont).stack }}>
-            <div className="p-hero" style={{ background: b.banners[0] ? `linear-gradient(rgb(0 0 0 / .35), rgb(0 0 0 / .72)), url(${b.banners[0]}) center/cover` : b.theme.header }}>
+            <div className="p-hero" style={{ background: heroFor(b, "home")[0] ? `linear-gradient(rgb(0 0 0 / .35), rgb(0 0 0 / .72)), url(${heroFor(b, "home")[0]}) center/cover` : b.theme.header }}>
               <small style={{ color: "#86efac" }}>● Open now</small>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {b.logoUrl && <img src={b.logoUrl} alt="" />}

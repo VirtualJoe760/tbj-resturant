@@ -74,8 +74,9 @@ button { font: inherit; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 16px; }
 .chips button, .chips a { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink); text-decoration: none; }
 .chips .on { background: var(--header); color: #fff; border-color: var(--header); }
-.bar { position: fixed; left: 0; right: 0; bottom: var(--tabbar-h); padding: 10px 16px; background: linear-gradient(transparent, var(--bg) 30%); z-index: 20; }
-.bar > * { max-width: 688px; margin: 0 auto; }
+.bar { position: fixed; left: 0; right: 0; bottom: var(--tabbar-h); padding: 10px 16px; z-index: 20; pointer-events: none; }
+.bar > * { max-width: 688px; margin: 0 auto; pointer-events: auto; box-shadow: 0 8px 24px rgb(0 0 0 / .28); }
+.bar .btn:disabled { opacity: 1; background: var(--card); color: var(--muted); box-shadow: 0 0 0 1px var(--line), 0 8px 24px rgb(0 0 0 / .2); }
 .no-tabs .bar { bottom: 0; padding-bottom: 18px; }
 
 /* forms */
@@ -118,10 +119,14 @@ button { font: inherit; }
 .hero .btn { max-width: 360px; }
 /* banner photos from Admin → Branding sit behind the hero, darkened so text stays readable */
 .hero { position: relative; overflow: hidden; isolation: isolate; }
-.hero .banners { position: absolute; inset: 0; z-index: -1; }
-.hero .banners img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.2s ease; }
-.hero .banners img.on { opacity: 1; }
-.hero .banners::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / .35), rgb(0 0 0 / .72)); }
+/* hero carousels: the home hero and every PageHero title bar */
+.top { position: relative; overflow: hidden; isolation: isolate; }
+.top.photo { min-height: 180px; display: flex; flex-direction: column; justify-content: flex-end; padding-top: 56px; }
+.top.photo p { color: #e4e4e7; }
+.banners { position: absolute; inset: 0; z-index: -1; }
+.banners img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.2s ease; }
+.banners img.on { opacity: 1; }
+.banners::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / .35), rgb(0 0 0 / .72)); }
 .hero .logo { display: block; max-height: 72px; max-width: 220px; width: auto; margin: 6px 0 4px; }
 .tabbar .brand img { height: 28px; width: auto; display: block; }
 .scroller { display: flex; gap: 12px; overflow-x: auto; padding: 4px 16px 8px; scroll-snap-type: x mandatory; }
@@ -246,7 +251,7 @@ button { font: inherit; }
 /* desktop: tab bar becomes a top nav, content column widens */
 @media (min-width: 900px) {
   :root { --tabbar-h: 0px; }
-  .tabbar { position: sticky; top: 0; bottom: auto; height: auto; align-items: center; gap: 4px; padding: 10px 24px; border-top: 0; border-bottom: 3px solid var(--primary); }
+  .tabbar { position: sticky; top: 0; bottom: auto; height: auto; align-items: center; gap: 4px; padding: 10px 24px; border-top: 0; border-bottom: 3px solid var(--primary); max-width: 1080px; margin: 0 auto; }
   .tabbar .brand { display: block; color: #fff; font-weight: 800; letter-spacing: .04em; margin-right: auto; text-decoration: none; font-size: 15px; flex: none; }
   .tabbar a { flex: none; flex-direction: row; font-size: 14px; padding: 8px 14px; color: #d4d4d8; border-radius: 999px; gap: 6px; }
   .tabbar a.on { background: #27272a; color: var(--primary); }
@@ -259,6 +264,9 @@ button { font: inherit; }
   .bar { bottom: 0; }
   .hero { padding: 64px max(24px, calc((100% - 1080px) / 2)); }
   .hero h1 { font-size: 52px; }
+  .top { padding: 28px 24px 24px; }
+  .top.photo { min-height: 260px; padding-bottom: 28px; }
+  .top.photo h1 { font-size: 40px; }
   .foot .cols { grid-template-columns: repeat(4, 1fr); }
   .sheet { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); width: 560px; max-height: 86vh; border-radius: 20px; }
   .sheet { padding-bottom: 0; }
@@ -275,6 +283,7 @@ button { font: inherit; }
 /* Admin → Branding */
 .panel.pad { padding: 10px 0; }
 .brand-grid { display: grid; gap: 0; }
+.brand-grid > *, .style-pick { min-width: 0; }
 @media (min-width: 900px) { .brand-grid { grid-template-columns: 1fr 340px; } .preview-col { position: sticky; top: 60px; align-self: start; } }
 .logo-well { margin: 4px 12px; border-radius: var(--radius-sm); min-height: 96px; display: flex; align-items: center; justify-content: center; padding: 14px; }
 .logo-well img { max-height: 72px; max-width: 100%; }
@@ -412,3 +421,6 @@ body.style-minimal .chips button, body.style-minimal .chips a { border-radius: 0
 .pv-midnight .p-card { background: #141416; color: #f4f4f5; }
 .pv-diner .p-card { border: 2px solid #2a1b12; box-shadow: 3px 3px 0 var(--primary); border-radius: 4px; }
 .pv-minimal .p-card { border-radius: 0; border-bottom: 1px solid #e8e8e8; }
+
+/* Admin → Branding: hero carousel thumbnails are wide, like the headers they fill */
+.hero-photos .ph { width: 168px; height: 94px; }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffBranding, fromBusinessTheme, googleFontsHref, inkFor, resolveBranding } from "./branding";
+import { diffBranding, fromBusinessTheme, googleFontsHref, heroFor, inkFor, resolveBranding } from "./branding";
 
 const base = fromBusinessTheme({ logo: "/brand/logo.png", appIcon: null, heroBanners: ["/brand/hero-1.jpg"], fonts: { heading: "oswald", body: "system" }, colors: { accent: "#F5A524", header: "#18181b", background: "#f5f5f4" } });
 
@@ -14,7 +14,13 @@ describe("branding", () => {
     expect(b.theme.header).toBe("#123456");
     expect(b.headingFont).toBe("oswald");
     expect(b.logoUrl).toBeNull(); // owner removed the logo
-    expect(b.banners).toEqual(["/brand/hero-1.jpg"]);
+    expect(b.heroes.home).toEqual(["/brand/hero-1.jpg"]); // older theme files used heroBanners
+  });
+  it("each page has its own hero carousel, falling back to the home page's", () => {
+    const b = resolveBranding({ heroes: { menu: ["/media/m1"] }, banners: ["/media/h1"] }, base);
+    expect(heroFor(b, "menu")).toEqual(["/media/m1"]);
+    expect(heroFor(b, "events")).toEqual(["/media/h1"]); // older saves kept the home carousel in banners
+    expect(diffBranding({ ...base, heroes: { ...base.heroes, events: ["/media/e1"] } }, base)).toEqual({ heroes: { events: ["/media/e1"] } });
   });
   it("stores only what differs from the theme file", () => {
     expect(diffBranding(base, base)).toEqual({});

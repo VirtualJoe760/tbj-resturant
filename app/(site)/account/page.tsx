@@ -1,3 +1,4 @@
+import { PageHero } from "@/components/PageHero";
 import Link from "next/link";
 import { desc, eq, inArray } from "drizzle-orm";
 import { getUser, landingFor } from "@/auth/session";
@@ -31,7 +32,7 @@ export default async function AccountPage() {
   if (!user)
     return (
       <>
-        <header className="top"><h1>Account</h1><p>Sign in for order history and one-tap reorder</p></header>
+        <PageHero page="account" title="Account">Sign in for order history and one-tap reorder</PageHero>
         <div style={{ margin: 16 }}><Link className="btn center" href="/login">Sign in or create an account</Link></div>
         <p className="note">No account needed to order — guest checkout works too.</p>
       </>
@@ -47,7 +48,7 @@ export default async function AccountPage() {
   };
   return (
     <>
-      <header className="top"><h1>Hi, {user.name.split(" ")[0]}</h1><p>Signed in as {user.email}</p></header>
+      <PageHero page="account" title={`Hi, ${user.name.split(" ")[0]}`}>Signed in as {user.email}</PageHero>
       {user.role !== "customer" && (
         <Link className="mrow" href={landingFor(user.role)}><span>🔑</span><div className="grow"><b>Go to your {user.role === "employee" ? "staff portal" : user.role === "kitchen" ? "kitchen screen" : "admin dashboard"}</b></div>›</Link>
       )}

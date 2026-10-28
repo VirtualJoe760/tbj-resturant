@@ -35,12 +35,16 @@ export interface RestaurantConfig {
 
 export interface GalleryPhoto { src: string; credit?: string; alt?: string }
 export type SiteStyle = "classic" | "midnight" | "diner" | "minimal";
+// pages with a photo carousel behind their header
+export type HeroPage = "home" | "menu" | "events" | "account";
 
 // The restaurant's look; values live in business-theme.ts (one file, plus images in public/brand/).
 export interface BusinessTheme {
   logo: string | null;
   appIcon: string | null;
-  heroBanners: string[];
+  // photo carousels behind each page's header; an empty one uses the home page's
+  heroes?: Partial<Record<HeroPage, string[]>>;
+  heroBanners?: string[]; // older theme files: the home carousel
   gallery?: GalleryPhoto[];
   fonts: { heading: string; body: string };
   // whole look of the site: "classic" | "midnight" (dark) | "diner" (retro) | "minimal" (white, square)

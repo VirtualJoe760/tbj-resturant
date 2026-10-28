@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   } as React.CSSProperties;
   const fonts = googleFontsHref([b.headingFont, b.bodyFont]);
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {fonts && <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}

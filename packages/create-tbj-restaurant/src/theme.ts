@@ -133,7 +133,7 @@ export function installTheme(intake: Intake, clientDir: string, appRoot: string)
   const background = b.colors?.background ?? "#f5f5f4";
   const fonts = b.fonts ?? { heading: "system", body: "system" };
 
-  return `// THE place for this restaurant's look: logo, app icon, home page banner photos, fonts, colors.
+  return `// THE place for this restaurant's look: logo, app icon, hero carousel photos, fonts, colors.
 // Put image files in public/brand/ and point to them here ("/brand/logo.png"). Every screen,
 // the app icon at every size, the install manifest and the app-store builds read from this file.
 //
@@ -149,8 +149,14 @@ export const businessTheme: BusinessTheme = {
   // null = first letter of the name on the header color
   appIcon: ${q(icon)},
 
-  // Wide photos (at least 1600 px across) that crossfade behind the home page header, in order${files.length ? "" : banners.length ? "\n  // (listing photos for the demo: replace with the owner's own before launch)" : ""}
-  heroBanners: [${banners.map((u) => `\n    ${q(u)},`).join("")}${banners.length ? "\n  " : ""}],
+  // Hero carousels: wide photos (at least 1600 px across) that crossfade behind each page's header,
+  // in order. An empty page uses the home photos. Owners can also upload them in Admin → Branding.${files.length ? "" : banners.length ? "\n  // (listing photos for the demo: replace with the owner's own before launch)" : ""}
+  heroes: {
+    home: [${banners.map((u) => `\n      ${q(u)},`).join("")}${banners.length ? "\n    " : ""}],
+    menu: [],
+    events: [],
+    account: [],
+  },
 
   // More photos for the "Photos" strip on the home page (credit is shown under listing photos)
   gallery: [${gallery.map((g) => `\n    { src: ${q(g.src)}${g.credit ? `, credit: ${q(g.credit)}` : ""}${g.alt ? `, alt: ${q(g.alt)}` : ""} },`).join("")}${gallery.length ? "\n  " : ""}],

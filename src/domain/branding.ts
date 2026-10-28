@@ -1,6 +1,6 @@
 // The restaurant's look. src/config/business-theme.ts is the source of truth; Admin → Branding
 // can layer owner changes on top (stored as overrides in brand.settings), each one resettable.
-import type { BusinessTheme, GalleryPhoto, SiteStyle } from "../config/types";
+import type { BusinessTheme, GalleryPhoto, HeroPage, SiteStyle } from "../config/types";
 
 export const STYLES: { id: SiteStyle; label: string; hint: string }[] = [
   { id: "classic", label: "Classic", hint: "Light pages, rounded cards" },
@@ -9,6 +9,20 @@ export const STYLES: { id: SiteStyle; label: string; hint: string }[] = [
   { id: "minimal", label: "Minimal", hint: "White space, square corners" },
 ];
 const styleOf = (x: unknown): SiteStyle => (STYLES.some((s) => s.id === x) ? (x as SiteStyle) : "classic");
+
+export const HERO_PAGES: { id: HeroPage; label: string; hint: string }[] = [
+  { id: "home", label: "Home hero carousel", hint: "Behind the name and the Order button on the home page." },
+  { id: "menu", label: "Menu hero carousel", hint: "Top of the Menu page." },
+  { id: "events", label: "Events hero carousel", hint: "Top of the Events page." },
+  { id: "account", label: "Account hero carousel", hint: "Top of the Account and sign-in pages." },
+];
+export const MAX_HERO_PHOTOS = 8;
+export type Heroes = Record<HeroPage, string[]>;
+
+const urlList = (x: unknown) => (Array.isArray(x) ? x.filter((u): u is string => typeof u === "string").slice(0, MAX_HERO_PHOTOS) : undefined);
+
+/** A page's header photos: its own carousel, or the home page's when it has none. */
+export const heroFor = (b: { heroes: Heroes }, page: HeroPage) => (b.heroes[page].length ? b.heroes[page] : b.heroes.home);
 
 export interface Theme { primary: string; primaryInk: string; header: string; bg: string }
 
@@ -19,12 +33,16 @@ export interface Branding {
   bodyFont: string;
   logoUrl: string | null;
   iconUrl: string | null; // "/brand/app-icon.png" from the theme file, or "/media/<id>" uploaded in admin
-  banners: string[]; // image URLs, shown as a slideshow behind the home page header
+  heroes: Heroes; // image URLs per page, crossfading behind its header
   gallery: GalleryPhoto[]; // the "Photos" strip on the home page
 }
 
 /** What Admin → Branding saves: only the fields the owner changed from business-theme.ts. */
-export type BrandingOverrides = Partial<Omit<Branding, "theme">> & { theme?: Partial<Omit<Theme, "primaryInk">> };
+export type BrandingOverrides = Partial<Omit<Branding, "theme" | "heroes">> & {
+  theme?: Partial<Omit<Theme, "primaryInk">>;
+  heroes?: Partial<Heroes>;
+  banners?: string[]; // saved before per-page heroes: the home carousel
+};
 
 export interface FontChoice { id: string; label: string; stack: string; google?: string }
 
@@ -71,7 +89,7 @@ export function fromBusinessTheme(t: BusinessTheme): Branding {
     bodyFont: fontById(t.fonts.body).id,
     logoUrl: t.logo,
     iconUrl: t.appIcon,
-    banners: t.heroBanners,
+    heroes: Object.fromEntries(HERO_PAGES.map(({ id }) => [id, urlList(t.heroes?.[id]) ?? (id === "home" ? urlList(t.heroBanners) : undefined) ?? []])) as Heroes,
     gallery: t.gallery ?? [],
   };
 }
@@ -94,7 +112,7 @@ export function resolveBranding(overrides: BrandingOverrides | undefined, base: 
     bodyFont: o.bodyFont && FONTS.some((f) => f.id === o.bodyFont) ? o.bodyFont : base.bodyFont,
     logoUrl: o.logoUrl !== undefined ? o.logoUrl : base.logoUrl,
     iconUrl: o.iconUrl !== undefined ? o.iconUrl : base.iconUrl,
-    banners: o.banners ?? base.banners,
+    heroes: Object.fromEntries(HERO_PAGES.map(({ id }) => [id, urlList(o.heroes?.[id]) ?? (id === "home" ? urlList(o.banners) : undefined) ?? base.heroes[id]])) as Heroes,
     gallery: o.gallery ?? base.gallery,
   };
 }
@@ -110,7 +128,9 @@ export function diffBranding(b: Branding, base: Branding): BrandingOverrides {
   if (b.bodyFont !== base.bodyFont) o.bodyFont = b.bodyFont;
   if (b.logoUrl !== base.logoUrl) o.logoUrl = b.logoUrl;
   if (b.iconUrl !== base.iconUrl) o.iconUrl = b.iconUrl;
-  if (JSON.stringify(b.banners) !== JSON.stringify(base.banners)) o.banners = b.banners;
+  const heroes: Partial<Heroes> = {};
+  for (const { id } of HERO_PAGES) if (JSON.stringify(b.heroes[id]) !== JSON.stringify(base.heroes[id])) heroes[id] = b.heroes[id];
+  if (Object.keys(heroes).length) o.heroes = heroes;
   if (JSON.stringify(b.gallery) !== JSON.stringify(base.gallery)) o.gallery = b.gallery;
   return o;
 }

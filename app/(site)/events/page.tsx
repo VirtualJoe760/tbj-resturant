@@ -3,6 +3,7 @@ import { dayLabel, repeatLabel } from "@/domain/events";
 import { formatTime } from "@/domain/hours";
 import { getUpcomingEvents } from "@/server/queries";
 import { restaurant } from "@/config/restaurant";
+import { PageHero } from "@/components/PageHero";
 
 export const metadata = { title: "Events" };
 
@@ -17,7 +18,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
   }));
   return (
     <>
-      <header className="top"><h1>Events</h1><p>Live music, bingo, karaoke &amp; more</p></header>
+      <PageHero page="events" title="Events">Live music, bingo, karaoke &amp; more</PageHero>
       <div className="chips">
         <Link className={!type ? "on" : ""} href="/events">All</Link>
         {types.map((t) => <Link key={t} className={type === t ? "on" : ""} href={`/events?type=${encodeURIComponent(t)}`}>{t}</Link>)}
